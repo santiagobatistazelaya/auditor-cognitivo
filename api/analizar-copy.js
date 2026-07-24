@@ -1,4 +1,5 @@
 module.exports = async function handler(req, res) {
+  // 1. Cabeceras anti-bloqueo (CORS)
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -10,6 +11,7 @@ module.exports = async function handler(req, res) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return res.status(500).json({ error: "Falta configurar la API Key" });
 
+    // 2. Lectura blindada del texto ingresado
     let texto = "";
     if (req.body) {
       if (typeof req.body === 'string') {
@@ -20,25 +22,7 @@ module.exports = async function handler(req, res) {
     }
     if (!texto) return res.status(400).json({ error: 'El texto es requerido' });
 
-    // 1. Buscamos modelos y filtramos el que nos bloqueó (2.5-flash)
-    const getModelsRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-    const modelsData = await getModelsRes.json();
-    if (!modelsData.models) throw new Error("No se pudo listar los modelos.");
-
-    const validModels = modelsData.models.filter(m => 
-      m.supportedGenerationMethods && 
-      m.supportedGenerationMethods.includes("generateContent") && 
-      !m.name.includes("2.5-flash")
-    );
-
-    // Priorizamos los modelos 1.5 que soportan JSON estricto
-    const bestModelObj = validModels.find(m => m.name.includes("1.5-flash")) || 
-                         validModels.find(m => m.name.includes("1.5-pro")) || 
-                         validModels[0];
-
-    if (!bestModelObj) throw new Error("No hay modelos disponibles.");
-    const finalModelName = bestModelObj.name.replace('models/', '');
-
+    // 3. Prompt estricto
     const promptMaestro = `Eres un Auditor Cognitivo experto. Analiza este texto publicitario basándote en Ekman, Zajonc y la Teoría de la Mente.
     Tu respuesta DEBE ser un único objeto JSON. Completa los valores de este formato y no escribas nada fuera de las llaves:
     {
@@ -49,41 +33,57 @@ module.exports = async function handler(req, res) {
     }
     Texto a analizar: "${texto}"`;
 
-    // 2. EL TRUCO: Le exigimos a la API de Google que solo permita salir un JSON válido
-    const requestBody = { 
-        contents: [{ parts: [{ text: promptMaestro }] }],
-        generationConfig: { responseMimeType: "application/json" }
-    };
+    // 4. Lista estática de modelos SIEMPRE gratuitos y universales
+    const modelosGratuitos = [
+        "gemini-1.5-flash",
+        "gemini-1.5-flash-8b",
+        "gemini-1.0-pro",
+        "gemini-pro"
+    ];
 
-    let generateRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${finalModelName}:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody)
-    });
+    let successData = null;
+    let lastError = null;
 
-    let generateData = await generateRes.json();
+    // 5. Bucle de ejecución ultra-rápido (evita la librería conflictiva)
+    for (const modelo of modelosGratuitos) {
+        try {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: promptMaestro }] }]
+                })
+            });
 
-    // Mecanismo de seguridad por si el modelo elegido no soporta el parámetro estricto
-    if (!generateRes.ok && generateData.error && generateData.error.message.includes("responseMimeType")) {
-        delete requestBody.generationConfig;
-        generateRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${finalModelName}:generateContent?key=${apiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestBody)
-        });
-        generateData = await generateRes.json();
+            const data = await response.json();
+
+            // Si el modelo responde correctamente, guardamos los datos y cortamos el bucle
+            if (response.ok && data.candidates && data.candidates.length > 0) {
+                successData = data;
+                break; 
+            } else {
+                lastError = data;
+            }
+        } catch (fetchError) {
+            lastError = fetchError;
+        }
     }
 
-    if (!generateRes.ok) throw new Error(JSON.stringify(generateData.error));
+    if (!successData) {
+        throw new Error(JSON.stringify(lastError || "Todos los modelos gratuitos fallaron."));
+    }
 
-    // 3. Limpieza final y lectura de datos
-    const responseText = generateData.candidates[0].content.parts[0].text;
+    // 6. Extracción quirúrgica del JSON (Ignora cualquier texto charlatán de la IA)
+    const responseText = successData.candidates[0].content.parts[0].text;
     
     let cleanJson = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
     const firstBrace = cleanJson.indexOf('{');
     const lastBrace = cleanJson.lastIndexOf('}');
+    
     if (firstBrace !== -1 && lastBrace !== -1) {
         cleanJson = cleanJson.substring(firstBrace, lastBrace + 1);
+    } else {
+        throw new Error("La IA no devolvió las llaves del JSON.");
     }
 
     const jsonResponse = JSON.parse(cleanJson);

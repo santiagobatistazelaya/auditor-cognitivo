@@ -26,11 +26,8 @@ module.exports = async function handler(req, res) {
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     
-    // Acá está el cambio clave: usamos el modelo 1.5 flash ultra-estable
-    const model = genAI.getGenerativeModel({
-        model: "gemini-1.5-flash",
-        generationConfig: { responseMimeType: "application/json" }
-    });
+    // EL CAMBIO DEFINITIVO: Modelo universal 'gemini-pro' sin configuraciones restrictivas
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
     const promptMaestro = `Eres un Auditor Cognitivo avanzado, experto en analizar copys publicitarios utilizando marcos teóricos de la psicología cognitiva (Ekman, Zajonc, Teoría de la Mente).
     Analiza el siguiente texto y responde ÚNICAMENTE con un objeto JSON válido, sin bloques de código markdown ni texto adicional, respetando exactamente esta estructura:
@@ -45,6 +42,7 @@ module.exports = async function handler(req, res) {
     const result = await model.generateContent(promptMaestro);
     const responseText = result.response.text();
     
+    // Nuestro limpiador manual se encarga de dejar el JSON inmaculado
     const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
     const jsonResponse = JSON.parse(cleanJson);
     

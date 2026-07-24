@@ -1,8 +1,8 @@
 {
   "name": "auditor-cognitivo",
   "version": "1.0.0",
-  "description": "Backend serverless para el Auditor Cognitivo",
+  "description": "Backend para Auditor Cognitivo con Gemini",
   "dependencies": {
-    "@anthropic-ai/sdk": "latest"
+    "@google/generative-ai": "^0.21.0"
   }
 }

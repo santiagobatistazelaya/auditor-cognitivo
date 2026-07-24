@@ -7,124 +7,180 @@
     <!-- CDN oficial de Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: auto; color: #333; }
-        textarea { width: 100%; height: 150px; margin-bottom: 10px; padding: 15px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; box-sizing: border-box; }
-        button { padding: 12px 24px; background-color: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; }
+        :root { --primary: #007bff; --bg: #f4f7f6; --card: #ffffff; --text: #333; --border: #e2e8f0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg); color: var(--text); padding: 2rem; max-width: 900px; margin: 0 auto; line-height: 1.6; }
+        h1 { font-size: 2.2rem; margin-bottom: 0.5rem; color: #1a202c; }
+        p.subtitle { color: #64748b; margin-bottom: 2rem; font-size: 1.1rem; }
+        
+        .input-group { background: var(--card); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 2rem; }
+        textarea { width: 100%; height: 120px; padding: 1rem; border: 1px solid var(--border); border-radius: 8px; resize: vertical; font-family: inherit; font-size: 1rem; margin-bottom: 1rem; box-sizing: border-box; }
+        textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,123,255,0.2); }
+        
+        button { background-color: var(--primary); color: white; border: none; padding: 0.8rem 1.8rem; font-size: 1rem; font-weight: bold; border-radius: 8px; cursor: pointer; transition: background-color 0.2s; }
         button:hover { background-color: #0056b3; }
-        button:disabled { background-color: #999; cursor: not-allowed; }
-        .graficos-container { display: flex; flex-direction: column; gap: 40px; margin-top: 30px; }
-        .tarjeta-grafico { background: #f8f9fa; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        canvas { max-width: 100%; }
+        button:disabled { background-color: #94a3b8; cursor: not-allowed; }
+        
+        .dashboard { display: grid; gap: 1.5rem; display: none; } /* Oculto hasta auditar */
+        .card { background: var(--card); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .card-title { font-size: 1.2rem; font-weight: bold; margin-bottom: 1rem; margin-top: 0; color: #2d3748; border-bottom: 2px solid #edf2f7; padding-bottom: 0.5rem; }
+        
+        /* Efecto Premium Block */
+        .locked { position: relative; overflow: hidden; }
+        .locked-content { filter: blur(6px); opacity: 0.5; pointer-events: none; transition: all 0.3s ease; }
+        .overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.3); z-index: 10; }
+        .premium-badge { background: #1e293b; color: white; padding: 0.75rem 1.5rem; border-radius: 50px; font-weight: bold; display: flex; align-items: center; gap: 0.5rem; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .premium-badge:hover { background: #0f172a; transform: scale(1.02); transition: 0.2s; }
+        
+        .results-box { background: #f8fafc; padding: 1.2rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid var(--primary); }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        
+        canvas { max-height: 300px; }
     </style>
 </head>
 <body>
 
     <h1>Auditor Cognitivo de Copywriting</h1>
-    <p>Pegá tu texto publicitario para analizar su rendimiento y flujo de retención.</p>
+    <p class="subtitle">Pegá tu texto publicitario para analizar su rendimiento y flujo de retención.</p>
     
-    <textarea id="texto-anuncio" placeholder="Escribí o pegá tu campaña publicitaria acá..."></textarea>
-    <button onclick="auditarCopy()" id="btn-auditar">Auditar Campaña</button>
-    <p id="mensaje-estado" style="color: #666; font-weight: bold; margin-top: 15px;"></p>
+    <div class="input-group">
+        <textarea id="texto-anuncio" placeholder="Escribí o pegá tu campaña publicitaria acá..."></textarea>
+        <div>
+            <button onclick="analizarCopy()" id="btn-auditar">Auditar Campaña</button>
+            <span id="mensaje-estado" style="margin-left: 1rem; color: #475569; font-weight: 500;"></span>
+        </div>
+    </div>
 
-    <div class="graficos-container">
-        <!-- Tarjeta Freemium -->
-        <div class="tarjeta-grafico">
-            <h3>Flujo de Atención (Cartesiano)</h3>
-            <canvas id="graficoCartesiano"></canvas>
+    <!-- Panel de Resultados (Oculto inicialmente) -->
+    <div id="dashboard" class="dashboard">
+        
+        <!-- Diagnóstico -->
+        <div class="card">
+            <h3 class="card-title">Diagnóstico Estructural</h3>
+            <div id="diagnostico-texto" class="results-box"></div>
         </div>
 
-        <!-- Tarjeta Premium (Perfil) -->
-        <div class="tarjeta-grafico">
-            <h3>Perfil Psicológico Completo (Radial)</h3>
-            <canvas id="graficoRadial"></canvas>
+        <div class="grid-2">
+            <!-- Gráfico Cartesiano (Versión Free) -->
+            <div class="card">
+                <h3 class="card-title">Flujo de Atención (Cartesiano)</h3>
+                <canvas id="graficoCartesiano"></canvas>
+            </div>
+
+            <!-- Gráfico Radial (Versión Premium) -->
+            <div class="card locked">
+                <div class="overlay">
+                    <div class="premium-badge">🔒 Perfil psicológico completo · Desbloquear Premium</div>
+                </div>
+                <div class="locked-content">
+                    <h3 class="card-title">Matriz Cognitiva (Radial)</h3>
+                    <canvas id="graficoRadial"></canvas>
+                </div>
+            </div>
         </div>
+
+        <!-- Test A/B -->
+        <div class="card">
+            <h3 class="card-title">Optimizaciones Sugeridas (Test A/B)</h3>
+            <div class="grid-2">
+                <div class="results-box" style="border-left-color: #ec4899;">
+                    <strong>Opción A (Impacto Afectivo - Zajonc):</strong><br><br>
+                    <span id="test-a"></span>
+                </div>
+                <div class="results-box" style="border-left-color: #8b5cf6;">
+                    <strong>Opción B (Impulso y Motivación):</strong><br><br>
+                    <span id="test-b"></span>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script>
         let chartCartesiano = null;
         let chartRadial = null;
 
-        async function auditarCopy() {
-            const texto = document.getElementById('texto-anuncio').value;
-            const estado = document.getElementById('mensaje-estado');
+        async function analizarCopy() {
             const btn = document.getElementById('btn-auditar');
+            const estado = document.getElementById('mensaje-estado');
+            const dashboard = document.getElementById('dashboard');
+            const texto = document.getElementById('texto-anuncio').value;
 
             if (!texto) {
                 alert('Por favor, ingresá un texto para auditar.');
                 return;
             }
 
-            estado.innerText = "Procesando métricas... (esto puede tardar unos segundos)";
             btn.disabled = true;
+            estado.innerText = "Procesando métricas cognitivas...";
+            dashboard.style.display = 'none'; // Ocultar mientras carga
 
             try {
-                // Acá es donde tu HTML llama al motor que subimos a Vercel
                 const response = await fetch('/api/analizar-copy', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ texto: texto })
                 });
 
-                if (!response.ok) {
-                    throw new Error("Error en el servidor o API no encontrada.");
-                }
-
+                if (!response.ok) throw new Error("Error en el servidor");
                 const data = await response.json();
                 
-                // Si todo sale bien, mandamos los datos a dibujar
-                dibujarGraficos(data);
+                actualizarResultados(data);
+                actualizarGraficos(data);
+                
+                dashboard.style.display = 'grid'; // Mostrar todo junto
                 estado.innerText = "¡Análisis completado!";
+                setTimeout(() => estado.innerText = "", 3000);
                 
             } catch (error) {
-                console.error('Detalle del error:', error);
-                estado.innerText = "Hubo un error al procesar la solicitud.";
+                console.error('Error:', error);
+                estado.innerText = "Hubo un error de conexión.";
             } finally {
                 btn.disabled = false;
             }
         }
 
-        function dibujarGraficos(data) {
-            // Destruimos gráficos anteriores si el usuario hace varias auditorías seguidas
+        function actualizarResultados(data) {
+            document.getElementById('diagnostico-texto').innerText = data.diagnostico_general || 'No se generó diagnóstico.';
+            
+            // Verificamos que el test A/B exista en la respuesta para no romper el código
+            if(data.test_ab) {
+                document.getElementById('test-a').innerText = data.test_ab.opcion_a || 'Generando opción A...';
+                document.getElementById('test-b').innerText = data.test_ab.opcion_b || 'Generando opción B...';
+            }
+        }
+
+        function actualizarGraficos(data) {
             if (chartCartesiano) chartCartesiano.destroy();
             if (chartRadial) chartRadial.destroy();
 
-            // 1. Dibujar Gráfico Cartesiano
-            const ctxCartesiano = document.getElementById('graficoCartesiano').getContext('2d');
-            chartCartesiano = new Chart(ctxCartesiano, {
-                type: 'line',
+            // Gráfico de Barras (Cartesiano)
+            const ctxCart = document.getElementById('graficoCartesiano').getContext('2d');
+            chartCartesiano = new Chart(ctxCart, {
+                type: 'bar',
                 data: {
                     labels: ['Inicio', 'Desarrollo', 'Cierre'],
                     datasets: [{
-                        label: 'Nivel de Retención (1 al 10)',
+                        label: 'Nivel de Retención (1-10)',
                         data: [
                             data.grafico_cartesiano.inicio,
                             data.grafico_cartesiano.desarrollo,
                             data.grafico_cartesiano.cierre
                         ],
-                        borderColor: '#007bff',
-                        backgroundColor: 'rgba(0, 123, 255, 0.2)',
-                        tension: 0.4,
-                        fill: true,
-                        pointRadius: 6
+                        backgroundColor: ['rgba(59, 130, 246, 0.8)', 'rgba(139, 92, 246, 0.8)', 'rgba(16, 185, 129, 0.8)'],
+                        borderRadius: 6
                     }]
                 },
                 options: { scales: { y: { min: 0, max: 10 } } }
             });
 
-            // 2. Dibujar Gráfico Radial
-            const ctxRadial = document.getElementById('graficoRadial').getContext('2d');
-            chartRadial = new Chart(ctxRadial, {
+            // Gráfico de Araña (Radial - Oculto bajo el blur)
+            const ctxRad = document.getElementById('graficoRadial').getContext('2d');
+            chartRadial = new Chart(ctxRad, {
                 type: 'radar',
                 data: {
-                    labels: [
-                        'Emociones (Ekman)', 
-                        'Reacción Afectiva (Zajonc)', 
-                        'Motivación Intrínseca', 
-                        'Teoría de la Mente', 
-                        'Claridad Cognitiva'
-                    ],
+                    labels: ['Emociones (Ekman)', 'Reacción Afectiva', 'Motivación', 'Teoría de la Mente', 'Claridad'],
                     datasets: [{
-                        label: 'Puntuación Cognitiva',
+                        label: 'Puntaje',
                         data: [
                             data.grafico_radial.emociones_universales,
                             data.grafico_radial.reaccion_afectiva,
@@ -132,10 +188,12 @@
                             data.grafico_radial.teoria_de_la_mente,
                             data.grafico_radial.claridad
                         ],
-                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                        borderColor: '#ff6384',
-                        pointBackgroundColor: '#ff6384',
-                        pointRadius: 5
+                        backgroundColor: 'rgba(236, 72, 153, 0.2)',
+                        borderColor: '#ec4899',
+                        pointBackgroundColor: '#ec4899',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: '#ec4899'
                     }]
                 },
                 options: { 

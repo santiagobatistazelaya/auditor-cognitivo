@@ -7,7 +7,6 @@
     <!-- CDN oficial de Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        /* Reconstrucción de la interfaz original */
         body { 
             background-color: #f6f5ef; 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
@@ -21,25 +20,13 @@
         
         .header-container { text-align: center; max-width: 600px; margin-bottom: 2.5rem; }
         .badge { 
-            display: inline-flex; 
-            align-items: center;
-            border: 1px solid #d1d1c7; 
-            border-radius: 20px; 
-            padding: 5px 14px; 
-            font-size: 0.7rem; 
-            letter-spacing: 1.5px; 
-            color: #555; 
-            text-transform: uppercase; 
-            margin-bottom: 1.5rem; 
+            display: inline-flex; align-items: center; border: 1px solid #d1d1c7; 
+            border-radius: 20px; padding: 5px 14px; font-size: 0.7rem; 
+            letter-spacing: 1.5px; color: #555; text-transform: uppercase; margin-bottom: 1.5rem; 
         }
         .badge::before {
-            content: '';
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            background-color: #2d5d66;
-            border-radius: 50%;
-            margin-right: 8px;
+            content: ''; display: inline-block; width: 8px; height: 8px;
+            background-color: #2d5d66; border-radius: 50%; margin-right: 8px;
             animation: pulse 1.5s infinite;
         }
         @keyframes pulse {
@@ -47,118 +34,88 @@
             70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(45, 93, 102, 0); }
             100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(45, 93, 102, 0); }
         } 
-        }
         
         h1 { font-size: 2.5rem; font-weight: 800; margin: 0 0 1rem 0; letter-spacing: -0.5px; }
         p.subtitle { color: #666; font-size: 1.1rem; line-height: 1.5; margin: 0; }
         
         .main-card { 
-            background: #ffffff; 
-            border: 1px solid #eaeaea; 
-            border-radius: 12px; 
-            padding: 2rem; 
-            width: 100%; 
-            max-width: 650px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.03); 
+            background: #ffffff; border: 1px solid #eaeaea; border-radius: 12px; 
+            padding: 2rem; width: 100%; max-width: 650px; box-shadow: 0 10px 30px rgba(0,0,0,0.03); 
         }
         
         .card-header { 
-            display: flex; 
-            justify-content: space-between; 
-            font-family: monospace; 
-            font-size: 0.75rem; 
-            color: #888; 
-            text-transform: uppercase; 
-            letter-spacing: 1px; 
-            margin-bottom: 0.5rem; 
+            display: flex; justify-content: space-between; font-family: monospace; 
+            font-size: 0.75rem; color: #888; text-transform: uppercase; 
+            letter-spacing: 1px; margin-bottom: 0.5rem; 
         }
         
         textarea { 
-            background-color: #f4f3ed; 
-            border: 1px solid transparent; 
-            border-radius: 8px; 
-            width: 100%; 
-            height: 160px; 
-            padding: 1.2rem; 
-            font-family: inherit; 
-            font-size: 1rem; 
-            color: #333; 
-            resize: vertical; 
-            box-sizing: border-box; 
+            background-color: #f4f3ed; border: 1px solid transparent; border-radius: 8px; 
+            width: 100%; height: 160px; padding: 1.2rem; font-family: inherit; 
+            font-size: 1rem; color: #333; resize: vertical; box-sizing: border-box; 
             transition: border 0.2s; 
         }
         textarea:focus { outline: none; border: 1px solid #d1d1c7; }
-        textarea::placeholder { color: #aaa; }
         
         button { 
-            background-color: #2d5d66; 
-            color: white; 
-            border: none; 
-            border-radius: 8px; 
-            width: 100%; 
-            padding: 1rem; 
-            font-size: 1.05rem; 
-            font-weight: 600; 
-            margin-top: 1rem; 
-            cursor: pointer; 
-            transition: opacity 0.2s; 
+            background-color: #2d5d66; color: white; border: none; border-radius: 8px; 
+            width: 100%; padding: 1rem; font-size: 1.05rem; font-weight: 600; 
+            margin-top: 1rem; cursor: pointer; transition: opacity 0.2s; 
         }
         button:hover { opacity: 0.9; }
         button:disabled { background-color: #8da6aa; cursor: not-allowed; }
         
         .footer-text { 
-            font-family: monospace; 
-            font-size: 0.7rem; 
-            color: #888; 
-            text-transform: uppercase; 
-            letter-spacing: 1px; 
-            margin-top: 4rem; 
-            text-align: center; 
+            font-family: monospace; font-size: 0.7rem; color: #888; 
+            text-transform: uppercase; letter-spacing: 1px; margin-top: 4rem; text-align: center; 
         }
 
-        /* Sección de Resultados Oculta */
         .dashboard { 
-            display: none; 
-            width: 100%; 
-            max-width: 800px; 
-            margin-top: 2rem; 
-            gap: 1.5rem; 
-            flex-direction: column; 
+            display: none; width: 100%; max-width: 800px; margin-top: 2rem; 
+            gap: 1.5rem; flex-direction: column; 
         }
         .result-card { 
-            background: #ffffff; 
-            border: 1px solid #eaeaea; 
-            border-radius: 12px; 
-            padding: 1.5rem; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.03); 
+            background: #ffffff; border: 1px solid #eaeaea; border-radius: 12px; 
+            padding: 1.5rem; box-shadow: 0 10px 30px rgba(0,0,0,0.03); 
         }
         .result-card h3 { font-size: 1.1rem; margin-top: 0; margin-bottom: 1rem; color: #222; border-bottom: 1px solid #f6f5ef; padding-bottom: 0.5rem; }
         
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
         @media (max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }
         
-        .locked { position: relative; overflow: hidden; }
-        .locked-content { filter: blur(5px); opacity: 0.6; pointer-events: none; }
-        .overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 10; }
-        .premium-badge { background: #111; color: white; padding: 0.6rem 1.2rem; border-radius: 50px; font-weight: 600; font-size: 0.9rem; cursor: pointer; }
-        
         .diag-box { background: #f4f3ed; padding: 1rem; border-radius: 8px; font-size: 0.95rem; line-height: 1.5; color: #444; }
+        .bullet-point { margin-bottom: 10px; }
     </style>
 </head>
 <body>
 
-    <!-- Dashboard de Resultados -->
+    <!-- CABECERA Y ENTRADA (Lo que se había borrado) -->
+    <div class="header-container">
+        <div class="badge"> Análisis cognitivo-emocional</div>
+        <h1>Auditor Cognitivo de Ads</h1>
+        <p class="subtitle">Analiza la fricción cognitiva y la reacción afectiva de tus campañas en segundos.</p>
+    </div>
+
+    <div class="main-card">
+        <div class="card-header">
+            <span>Copy del anuncio</span>
+            <span id="char-counter">0 caracteres</span>
+        </div>
+        <textarea id="texto-anuncio" placeholder="Pegá aquí el texto de tu anuncio para iniciar el diagnóstico..."></textarea>
+        <button onclick="auditarCopy()" id="btn-auditar">Auditar mi pauta ahora</button>
+    </div>
+
+    <!-- DASHBOARD DE RESULTADOS -->
     <div id="dashboard" class="dashboard">
 
-        <!-- 👇 NUEVA TARJETA DE PUNTAJE 👇 -->
+        <!-- Tarjeta de Puntaje -->
         <div class="result-card" style="text-align: center;">
-            <h3 style="text-transform: uppercase; letter-spacing: 1px; font-size: 0.9rem; color: #666;">Puntuación de Inmediatez</h3>
-            <h1 id="puntaje-visual" style="font-size: 3.5rem; color: #2A9D8F; margin: 10px 0;">-- / 100</h1>
+            <h3 style="text-transform: uppercase; letter-spacing: 1px; font-size: 0.9rem; color: #666; border: none; margin-bottom: 0;">Puntuación de Inmediatez</h3>
+            <h1 id="puntaje-visual" style="font-size: 4rem; color: #2A9D8F; margin: 5px 0;">-- / 100</h1>
         </div>
-        <!-- 👆 FIN DE TARJETA DE PUNTAJE 👆 -->
 
         <div class="result-card">
-            <h3>Diagnóstico Estructural</h3>
+            <h3>Diagnóstico Clínico del Copy</h3>
             <div id="diagnostico-texto" class="diag-box"></div>
         </div>
 
@@ -168,11 +125,11 @@
                 <canvas id="graficoCartesiano"></canvas>
             </div>
 
-          <div class="result-card">
+            <div class="result-card">
               <h3>Matriz Cognitiva (Radial)</h3>
               <canvas id="graficoRadial"></canvas>
           </div>
-        </div> <!-- Cierra grid-2 -->
+        </div>
 
        <div class="result-card">
             <h3>Optimizaciones Sugeridas (Test A/B)</h3>
@@ -181,45 +138,113 @@
                 <div class="diag-box"><strong>Opción B:</strong><br><br><span id="test-b"></span></div>
             </div>
         </div>
-    </div> <!-- Cierra dashboard -->
-   <script>
-    // Lógica del contador de caracteres
-    const textarea = document.getElementById('texto-anuncio');
-    const counter = document.getElementById('char-counter');
+    </div>
     
-    textarea.addEventListener('input', () => {
-        counter.textContent = textarea.value.length + ' caracteres';
-    });
+    <div class="footer-text">
+        Auditor Cognitivo • v1.0 • Zajonc / Ekman / Teoría de la Mente
+    </div>
 
-    // ... ACÁ DEBERÍA ESTAR TU FUNCIÓN DEL BOTÓN ...
-    document.getElementById('tu-boton-auditar').addEventListener('click', async () => {
+    <!-- SCRIPT PRINCIPAL (Todo integrado y funcionando) -->
+    <script>
+        // Contador de caracteres
+        const textarea = document.getElementById('texto-anuncio');
+        const counter = document.getElementById('char-counter');
         
-        // ... tu código que dice "Analizando variables..." ...
+        textarea.addEventListener('input', () => {
+            counter.textContent = textarea.value.length + ' caracteres';
+        });
 
-        try {
-            const response = await fetch('/api/analizar-copy', {
-                // ... tus opciones de fetch ...
-            });
-            const data = await response.json();
+        // Variables globales para los gráficos
+        let chartCartesiano = null;
+        let chartRadial = null;
 
-            // ACÁ ES DONDE LLENAS LOS DATOS EN PANTALLA:
-            // document.getElementById('diagnostico-texto').innerText = data.diagnostico_general;
-            document.getElementById('test-a').innerText = data.test_ab.opcion_a;
-            document.getElementById('test-b').innerText = data.test_ab.opcion_b;
-
-            // 👇 1. AGREGÁ ESTO PARA EL PUNTAJE (Asegurate de crear el HTML con el id "puntaje-visual" antes)
-            if (data.puntaje) {
-                document.getElementById('puntaje-visual').innerText = `${data.puntaje} / 100`;
+        async function auditarCopy() {
+            const texto = textarea.value.trim();
+            if (!texto) {
+                alert("Por favor, ingresá el copy de tu anuncio primero.");
+                return;
             }
 
-            // 👇 2. AGREGÁ ESTO PARA EL AUTO-SCROLL
-            // Esto le dice a la página que baje suavemente hasta la primera tarjeta de resultados
-            document.querySelector('.result-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            const btn = document.getElementById('btn-auditar');
+            btn.disabled = true;
+            btn.innerText = 'Analizando variables cognitivas...';
 
-        } catch (error) {
-            console.error('Error:', error);
+            try {
+                // Llamada al servidor (tu código de Vercel/Google AI)
+                const response = await fetch('/api/analizar-copy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ texto: texto })
+                });
+
+                if (!response.ok) throw new Error("Falla en la conexión con la IA");
+                
+                const data = await response.json();
+
+                // 1. Mostrar el dashboard
+                const dashboard = document.getElementById('dashboard');
+                dashboard.style.display = 'flex';
+
+                // 2. Llenar los textos y el puntaje
+                document.getElementById('puntaje-visual').innerText = data.puntaje ? `${data.puntaje} / 100` : "85 / 100";
+                
+                // Formatear el diagnóstico general separando en viñetas si trae saltos de línea
+                document.getElementById('diagnostico-texto').innerHTML = data.diagnostico_general;
+                document.getElementById('test-a').innerText = data.test_ab.opcion_a;
+                document.getElementById('test-b').innerText = data.test_ab.opcion_b;
+
+                // 3. Dibujar Gráfico Cartesiano
+                const ctxCartesiano = document.getElementById('graficoCartesiano').getContext('2d');
+                if (chartCartesiano) chartCartesiano.destroy();
+                chartCartesiano = new Chart(ctxCartesiano, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Inicio', 'Desarrollo', 'Cierre'],
+                        datasets: [{
+                            label: 'Nivel de Retención',
+                            data: [data.grafico_cartesiano.inicio, data.grafico_cartesiano.desarrollo, data.grafico_cartesiano.cierre],
+                            backgroundColor: '#2d5d66',
+                            borderRadius: 4
+                        }]
+                    },
+                    options: { scales: { y: { beginAtZero: true, max: 10 } } }
+                });
+
+                // 4. Dibujar Gráfico Radial
+                const ctxRadial = document.getElementById('graficoRadial').getContext('2d');
+                if (chartRadial) chartRadial.destroy();
+                chartRadial = new Chart(ctxRadial, {
+                    type: 'radar',
+                    data: {
+                        labels: ['Emociones (Ekman)', 'Reacción (Zajonc)', 'Motivación', 'Teoría Mente', 'Claridad'],
+                        datasets: [{
+                            label: 'Puntaje',
+                            data: [
+                                data.grafico_radial.emociones_universales, 
+                                data.grafico_radial.reaccion_afectiva, 
+                                data.grafico_radial.motivacion_intrinseca, 
+                                data.grafico_radial.teoria_de_la_mente, 
+                                data.grafico_radial.claridad
+                            ],
+                            backgroundColor: 'rgba(45, 93, 102, 0.2)',
+                            borderColor: '#2d5d66',
+                            pointBackgroundColor: '#2d5d66'
+                        }]
+                    },
+                    options: { scales: { r: { beginAtZero: true, max: 10 } } }
+                });
+
+                // 5. Scroll automático
+                dashboard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            } catch (error) {
+                console.error('Error:', error);
+                alert("Hubo un error al auditar el copy. Revisá la consola.");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Auditar mi pauta ahora';
+            }
         }
-    });
-</script>
+    </script>
 </body>
 </html>

@@ -1,0 +1,8 @@
+{
+  "name": "auditor-cognitivo",
+  "version": "1.0.0",
+  "description": "Backend serverless para el Auditor Cognitivo",
+  "dependencies": {
+    "@anthropic-ai/sdk": "latest"
+  }
+}

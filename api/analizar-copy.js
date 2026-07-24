@@ -22,7 +22,7 @@ module.exports = async function handler(req, res) {
     }
     if (!texto) return res.status(400).json({ error: 'El texto es requerido' });
 
-    // 3. Prompt estricto
+    // 3. Prompt estricto basado en marcos teóricos (Ekman, Zajonc, ToM)
     const promptMaestro = `Eres un Auditor Cognitivo experto. Analiza este texto publicitario basándote en Ekman, Zajonc y la Teoría de la Mente.
     Tu respuesta DEBE ser un único objeto JSON. Completa los valores de este formato y no escribas nada fuera de las llaves:
     {
@@ -33,18 +33,18 @@ module.exports = async function handler(req, res) {
     }
     Texto a analizar: "${texto}"`;
 
-    // 4. Lista estática de modelos SIEMPRE gratuitos y universales
+    // 4. LA CLAVE ACTUALIZADA: Modelos de las familias 3.x y 2.5 con capa gratuita en 2026
     const modelosGratuitos = [
-        "gemini-1.5-flash",
-        "gemini-1.5-flash-8b",
-        "gemini-1.0-pro",
-        "gemini-pro"
+        "gemini-3.5-flash",
+        "gemini-3.1-flash-lite",
+        "gemini-2.5-flash-lite",
+        "gemini-2.5-flash"
     ];
 
     let successData = null;
     let lastError = null;
 
-    // 5. Bucle de ejecución ultra-rápido (evita la librería conflictiva)
+    // 5. Bucle de supervivencia ultra-rápido
     for (const modelo of modelosGratuitos) {
         try {
             const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`, {
@@ -57,7 +57,7 @@ module.exports = async function handler(req, res) {
 
             const data = await response.json();
 
-            // Si el modelo responde correctamente, guardamos los datos y cortamos el bucle
+            // Si el modelo responde con éxito, guardamos y cortamos el bucle
             if (response.ok && data.candidates && data.candidates.length > 0) {
                 successData = data;
                 break; 
@@ -70,10 +70,10 @@ module.exports = async function handler(req, res) {
     }
 
     if (!successData) {
-        throw new Error(JSON.stringify(lastError || "Todos los modelos gratuitos fallaron."));
+        throw new Error(JSON.stringify(lastError || "Todos los modelos de la generación 3.x y 2.5 fallaron."));
     }
 
-    // 6. Extracción quirúrgica del JSON (Ignora cualquier texto charlatán de la IA)
+    // 6. Extracción quirúrgica del JSON
     const responseText = successData.candidates[0].content.parts[0].text;
     
     let cleanJson = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();

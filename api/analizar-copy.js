@@ -1,6 +1,5 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-
 module.exports = async function handler(req, res) {
+  // Cabeceras para que tu web y el servidor hablen sin bloqueos
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -9,10 +8,10 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido' });
 
   try {
-    if (!process.env.GEMINI_API_KEY) {
-      return res.status(500).json({ error: "Falta configurar la API Key en Vercel" });
-    }
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) return res.status(500).json({ error: "Falta configurar la API Key en Vercel" });
 
+    // Leemos el texto de forma segura
     let texto = "";
     if (req.body) {
       if (typeof req.body === 'string') {
@@ -21,14 +20,27 @@ module.exports = async function handler(req, res) {
         texto = req.body.texto;
       }
     }
-
     if (!texto) return res.status(400).json({ error: 'El texto es requerido' });
 
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    
-    // EL CAMBIO DEFINITIVO: Modelo universal 'gemini-pro' sin configuraciones restrictivas
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    // 1. AUTO-DESCUBRIMIENTO: Le preguntamos a Google qué modelos tenés habilitados
+    const getModelsRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+    const modelsData = await getModelsRes.json();
 
+    if (!modelsData.models) {
+      throw new Error("No se pudo listar los modelos de Google. Revisá la API Key.");
+    }
+
+    // Filtramos para usar el primero que sirva para generar texto
+    const validModels = modelsData.models.filter(m => 
+      m.supportedGenerationMethods && 
+      m.supportedGenerationMethods.includes("generateContent")
+    );
+
+    // Priorizamos un modelo "flash" si existe, sino agarramos el primero de la lista
+    const bestModelObj = validModels.find(m => m.name.includes("flash")) || validModels[0];
+    const finalModelName = bestModelObj.name.replace('models/', '');
+
+    // 2. PETICIÓN DIRECTA: Mandamos a auditar usando el modelo auto-descubierto
     const promptMaestro = `Eres un Auditor Cognitivo avanzado, experto en analizar copys publicitarios utilizando marcos teóricos de la psicología cognitiva (Ekman, Zajonc, Teoría de la Mente).
     Analiza el siguiente texto y responde ÚNICAMENTE con un objeto JSON válido, sin bloques de código markdown ni texto adicional, respetando exactamente esta estructura:
     {
@@ -39,11 +51,25 @@ module.exports = async function handler(req, res) {
     }
     Texto a analizar: "${texto}"`;
 
-    const result = await model.generateContent(promptMaestro);
-    const responseText = result.response.text();
-    
-    // Nuestro limpiador manual se encarga de dejar el JSON inmaculado
-    const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+    const requestBody = {
+      contents: [{ parts: [{ text: promptMaestro }] }]
+    };
+
+    const generateRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${finalModelName}:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody)
+    });
+
+    const generateData = await generateRes.json();
+
+    if (!generateRes.ok) {
+      throw new Error(JSON.stringify(generateData.error || generateData));
+    }
+
+    // 3. LIMPIEZA Y ENTREGA: Agarramos el texto y forzamos que sea un JSON puro
+    const responseText = generateData.candidates[0].content.parts[0].text;
+    const cleanJson = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
     const jsonResponse = JSON.parse(cleanJson);
     
     return res.status(200).json(jsonResponse);

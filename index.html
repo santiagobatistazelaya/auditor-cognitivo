@@ -147,23 +147,16 @@
 </head>
 <body>
 
-    <div class="header-container">
-        <div class="badge"> Análisis cognitivo-emocional</div>
-        <h1>Auditor Cognitivo de Ads</h1>
-        <p class="subtitle">Analiza la fricción cognitiva y la reacción afectiva de tus campañas en segundos.</p>
-    </div>
-
-    <div class="main-card">
-        <div class="card-header">
-            <span>Copy del anuncio</span>
-            <span id="char-counter">0 caracteres</span>
-        </div>
-        <textarea id="texto-anuncio" placeholder="Pegá aquí el texto de tu anuncio para iniciar el diagnóstico..."></textarea>
-        <button onclick="auditarCopy()" id="btn-auditar">Auditoría Cognitiva</button>
-    </div>
-
     <!-- Dashboard de Resultados -->
     <div id="dashboard" class="dashboard">
+
+        <!-- 👇 NUEVA TARJETA DE PUNTAJE 👇 -->
+        <div class="result-card" style="text-align: center;">
+            <h3 style="text-transform: uppercase; letter-spacing: 1px; font-size: 0.9rem; color: #666;">Puntuación de Inmediatez</h3>
+            <h1 id="puntaje-visual" style="font-size: 3.5rem; color: #2A9D8F; margin: 10px 0;">-- / 100</h1>
+        </div>
+        <!-- 👆 FIN DE TARJETA DE PUNTAJE 👆 -->
+
         <div class="result-card">
             <h3>Diagnóstico Estructural</h3>
             <div id="diagnostico-texto" class="diag-box"></div>
@@ -176,123 +169,57 @@
             </div>
 
           <div class="result-card">
-    <h3>Matriz Cognitiva (Radial)</h3>
-    <canvas id="graficoRadial"></canvas>
-</div>
+              <h3>Matriz Cognitiva (Radial)</h3>
+              <canvas id="graficoRadial"></canvas>
+          </div>
+        </div> <!-- Cierra grid-2 -->
 
-        <div class="result-card">
+       <div class="result-card">
             <h3>Optimizaciones Sugeridas (Test A/B)</h3>
-            <div class="grid-2">
+            <div style="display: flex; flex-direction: column; gap: 20px;">
                 <div class="diag-box"><strong>Opción A:</strong><br><br><span id="test-a"></span></div>
                 <div class="diag-box"><strong>Opción B:</strong><br><br><span id="test-b"></span></div>
             </div>
         </div>
-    </div>
+    </div> <!-- Cierra dashboard -->
+   <script>
+    // Lógica del contador de caracteres
+    const textarea = document.getElementById('texto-anuncio');
+    const counter = document.getElementById('char-counter');
+    
+    textarea.addEventListener('input', () => {
+        counter.textContent = textarea.value.length + ' caracteres';
+    });
 
-    <div class="footer-text">
-        Auditor Cognitivo • v1.0 • Zajonc / Ekman / Teoría de la Mente
-    </div>
-
-    <script>
-        // Lógica del contador de caracteres
-        const textarea = document.getElementById('texto-anuncio');
-        const counter = document.getElementById('char-counter');
+    // ... ACÁ DEBERÍA ESTAR TU FUNCIÓN DEL BOTÓN ...
+    document.getElementById('tu-boton-auditar').addEventListener('click', async () => {
         
-        textarea.addEventListener('input', () => {
-            counter.textContent = textarea.value.length + ' caracteres';
-        });
+        // ... tu código que dice "Analizando variables..." ...
 
-        let chartCartesiano = null;
-        let chartRadial = null;
+        try {
+            const response = await fetch('/api/analizar-copy', {
+                // ... tus opciones de fetch ...
+            });
+            const data = await response.json();
 
-        async function auditarCopy() {
-            const btn = document.getElementById('btn-auditar');
-            const dashboard = document.getElementById('dashboard');
-            const texto = textarea.value;
+            // ACÁ ES DONDE LLENAS LOS DATOS EN PANTALLA:
+            // document.getElementById('diagnostico-texto').innerText = data.diagnostico_general;
+            document.getElementById('test-a').innerText = data.test_ab.opcion_a;
+            document.getElementById('test-b').innerText = data.test_ab.opcion_b;
 
-            if (!texto) return;
-
-            const textoOriginalBtn = btn.innerText;
-            btn.disabled = true;
-            btn.innerText = "Analizando variables...";
-            dashboard.style.display = 'none';
-
-            try {
-                const response = await fetch('/api/analizar-copy', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ texto: texto })
-                });
-
-                if (!response.ok) throw new Error("Error en el servidor");
-                const data = await response.json();
-                
-                document.getElementById('diagnostico-texto').innerText = data.diagnostico_general || 'Sin diagnóstico.';
-                if(data.test_ab) {
-                    document.getElementById('test-a').innerText = data.test_ab.opcion_a || '...';
-                    document.getElementById('test-b').innerText = data.test_ab.opcion_b || '...';
-                }
-                
-                actualizarGraficos(data);
-                
-                // Mostrar el dashboard una vez que todo cargó
-                dashboard.style.display = 'flex';
-                
-            } catch (error) {
-                alert("Hubo un error de conexión. Revisá la consola para más detalles.");
-            } finally {
-                btn.disabled = false;
-                btn.innerText = textoOriginalBtn;
+            // 👇 1. AGREGÁ ESTO PARA EL PUNTAJE (Asegurate de crear el HTML con el id "puntaje-visual" antes)
+            if (data.puntaje) {
+                document.getElementById('puntaje-visual').innerText = `${data.puntaje} / 100`;
             }
+
+            // 👇 2. AGREGÁ ESTO PARA EL AUTO-SCROLL
+            // Esto le dice a la página que baje suavemente hasta la primera tarjeta de resultados
+            document.querySelector('.result-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        } catch (error) {
+            console.error('Error:', error);
         }
-
-        function actualizarGraficos(data) {
-            if (chartCartesiano) chartCartesiano.destroy();
-            if (chartRadial) chartRadial.destroy();
-
-            // Gráfico Cartesiano adaptado a los colores de tu UI
-            const ctxCart = document.getElementById('graficoCartesiano').getContext('2d');
-            chartCartesiano = new Chart(ctxCart, {
-                type: 'bar',
-                data: {
-                    labels: ['Inicio', 'Desarrollo', 'Cierre'],
-                    datasets: [{
-                        label: 'Nivel de Retención (1-10)',
-                        data: [
-                            data.grafico_cartesiano.inicio, 
-                            data.grafico_cartesiano.desarrollo, 
-                            data.grafico_cartesiano.cierre
-                        ],
-                        backgroundColor: '#2d5d66',
-                        borderRadius: 6
-                    }]
-                },
-                options: { scales: { y: { min: 0, max: 10 } } }
-            });
-
-            // Gráfico Radial
-            const ctxRad = document.getElementById('graficoRadial').getContext('2d');
-            chartRadial = new Chart(ctxRad, {
-                type: 'radar',
-                data: {
-                    labels: ['Ekman', 'Zajonc', 'Motivación', 'T. Mente', 'Claridad'],
-                    datasets: [{
-                        label: 'Puntaje',
-                        data: [
-                            data.grafico_radial.emociones_universales,
-                            data.grafico_radial.reaccion_afectiva,
-                            data.grafico_radial.motivacion_intrinseca,
-                            data.grafico_radial.teoria_de_la_mente,
-                            data.grafico_radial.claridad
-                        ],
-                        backgroundColor: 'rgba(45, 93, 102, 0.2)',
-                        borderColor: '#2d5d66',
-                        pointBackgroundColor: '#2d5d66'
-                    }]
-                },
-                options: { scales: { r: { min: 0, max: 10 } } }
-            });
-        }
-    </script>
+    });
+</script>
 </body>
 </html>

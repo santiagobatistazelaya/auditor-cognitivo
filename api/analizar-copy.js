@@ -1,5 +1,4 @@
 module.exports = async function handler(req, res) {
-  // Cabeceras para que tu web y el servidor hablen sin bloqueos
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -9,9 +8,8 @@ module.exports = async function handler(req, res) {
 
   try {
     const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) return res.status(500).json({ error: "Falta configurar la API Key en Vercel" });
+    if (!apiKey) return res.status(500).json({ error: "Falta configurar la API Key" });
 
-    // Leemos el texto de forma segura
     let texto = "";
     if (req.body) {
       if (typeof req.body === 'string') {
@@ -22,25 +20,23 @@ module.exports = async function handler(req, res) {
     }
     if (!texto) return res.status(400).json({ error: 'El texto es requerido' });
 
-    // 1. AUTO-DESCUBRIMIENTO: Le preguntamos a Google qué modelos tenés habilitados
+    // 1. Buscamos TODOS los modelos disponibles
     const getModelsRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
     const modelsData = await getModelsRes.json();
 
-    if (!modelsData.models) {
-      throw new Error("No se pudo listar los modelos de Google. Revisá la API Key.");
-    }
+    if (!modelsData.models) throw new Error("No se pudo listar los modelos. Revisá la API Key.");
 
-    // Filtramos para usar el primero que sirva para generar texto
+    // Filtramos para quedarnos solo con los que generan contenido
     const validModels = modelsData.models.filter(m => 
-      m.supportedGenerationMethods && 
-      m.supportedGenerationMethods.includes("generateContent")
+      m.supportedGenerationMethods && m.supportedGenerationMethods.includes("generateContent")
     );
 
-    // Priorizamos un modelo "flash" si existe, sino agarramos el primero de la lista
-    const bestModelObj = validModels.find(m => m.name.includes("flash")) || validModels[0];
-    const finalModelName = bestModelObj.name.replace('models/', '');
+    // Descartamos de entrada los que ya sabemos que Google bloquea o dio de baja
+    const fallbackModels = validModels.filter(m => 
+      !m.name.includes("2.5-flash") && !m.name.includes("1.5-flash") && !m.name.includes("gemini-pro")
+    );
+    const modelsToTry = fallbackModels.length > 0 ? fallbackModels : validModels;
 
-    // 2. PETICIÓN DIRECTA: Mandamos a auditar usando el modelo auto-descubierto
     const promptMaestro = `Eres un Auditor Cognitivo avanzado, experto en analizar copys publicitarios utilizando marcos teóricos de la psicología cognitiva (Ekman, Zajonc, Teoría de la Mente).
     Analiza el siguiente texto y responde ÚNICAMENTE con un objeto JSON válido, sin bloques de código markdown ni texto adicional, respetando exactamente esta estructura:
     {
@@ -51,23 +47,36 @@ module.exports = async function handler(req, res) {
     }
     Texto a analizar: "${texto}"`;
 
-    const requestBody = {
-      contents: [{ parts: [{ text: promptMaestro }] }]
-    };
+    const requestBody = { contents: [{ parts: [{ text: promptMaestro }] }] };
 
-    const generateRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${finalModelName}:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody)
-    });
+    let generateData = null;
+    let lastError = null;
+    let success = false;
 
-    const generateData = await generateRes.json();
+    // 2. BUCLE INDESTRUCTIBLE: Probamos modelo por modelo hasta que Google acepte uno
+    for (const modelObj of modelsToTry) {
+        const finalModelName = modelObj.name.replace('models/', '');
+        const generateRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${finalModelName}:generateContent?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody)
+        });
 
-    if (!generateRes.ok) {
-      throw new Error(JSON.stringify(generateData.error || generateData));
+        generateData = await generateRes.json();
+
+        if (generateRes.ok) {
+            success = true;
+            break; // ¡Funciona! Cortamos el bucle y avanzamos
+        } else {
+            lastError = generateData; // Guardamos el error y probamos el siguiente de la lista
+        }
     }
 
-    // 3. LIMPIEZA Y ENTREGA: Agarramos el texto y forzamos que sea un JSON puro
+    if (!success) {
+       throw new Error(JSON.stringify(lastError)); // Si absolutamente todos fallan, mostramos por qué
+    }
+
+    // 3. Limpieza y respuesta
     const responseText = generateData.candidates[0].content.parts[0].text;
     const cleanJson = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
     const jsonResponse = JSON.parse(cleanJson);

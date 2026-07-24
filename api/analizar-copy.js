@@ -23,13 +23,18 @@ module.exports = async function handler(req, res) {
     if (!texto) return res.status(400).json({ error: 'El texto es requerido' });
 
     // 3. Prompt estricto basado en marcos teóricos (Ekman, Zajonc, ToM)
-    const promptMaestro = `Eres un Auditor Cognitivo experto. Analiza este texto publicitario basándote en Ekman, Zajonc y la Teoría de la Mente.
-    Tu respuesta DEBE ser un único objeto JSON. Completa los valores de este formato y no escribas nada fuera de las llaves:
+   const promptMaestro = `Eres un Auditor Cognitivo de alto nivel, experto en psicología del consumidor, growth marketing y optimización de campañas de alto impacto. Tu objetivo es medir la fricción cognitiva y la resonancia emocional de los copys.
+    Analiza este texto publicitario basándote estrictamente en los marcos teóricos de Paul Ekman (emociones universales), Robert Zajonc (primacía del afecto/reacción visceral) y la Teoría de la Mente.
+    Tu respuesta DEBE ser ÚNICAMENTE un objeto JSON válido. Completa los valores siguiendo este formato exacto:
     {
+      "puntaje": 85,
       "grafico_cartesiano": { "inicio": 7, "desarrollo": 6, "cierre": 8 },
       "grafico_radial": { "emociones_universales": 7, "reaccion_afectiva": 8, "motivacion_intrinseca": 6, "teoria_de_la_mente": 7, "claridad": 9 },
-      "diagnostico_general": "Texto con feedback...",
-      "test_ab": { "opcion_a": "Opción A...", "opcion_b": "Opción B..." }
+      "diagnostico_general": "Redacta un DIAGNÓSTICO CLÍNICO exhaustivo (2 a 3 párrafos). Analiza la jerarquía de procesamiento afectivo, si la reacción visceral se dispara en los primeros segundos, la carga cognitiva requerida para decodificar la promesa y la calidad del anclaje emocional. Usa un tono riguroso, científico y directo.",
+      "test_ab": { 
+          "opcion_a": "REDISEÑO ÓPTIMO A: Redacta un copy real, directo y de alta conversión (estilo FMCG/Retail). Frases cortas, anclaje emocional fuerte e inmediatez. Debajo, agrega una breve justificación de por qué funciona cognitivamente.", 
+          "opcion_b": "REDISEÑO ÓPTIMO B: Redacta una variante enfocada en la motivación intrínseca y la reducción absoluta de fricción cognitiva. Incluye justificación." 
+      }
     }
     Texto a analizar: "${texto}"`;
 

@@ -213,7 +213,10 @@
                             borderRadius: 4
                         }]
                     },
-                    options: { scales: { y: { beginAtZero: true, max: 10 } } }
+                    options: { 
+                        maintainAspectRatio: false, /* ACÁ ESTÁ EL CAMBIO */
+                        scales: { y: { beginAtZero: true, max: 10 } } 
+                    }
                 });
 
                 // 4. Dibujar Gráfico Radial
@@ -237,9 +240,11 @@
                             pointBackgroundColor: '#2d5d66'
                         }]
                     },
-                    options: { scales: { r: { beginAtZero: true, max: 10 } } }
+                    options: { 
+                        maintainAspectRatio: false, /* ACÁ ESTÁ EL CAMBIO */
+                        scales: { r: { beginAtZero: true, max: 10 } } 
+                    }
                 });
-
                 // 5. Scroll automático
                 dashboard.scrollIntoView({ behavior: 'smooth', block: 'start' });
 

@@ -20,25 +20,21 @@ module.exports = async function handler(req, res) {
     }
     if (!texto) return res.status(400).json({ error: 'El texto es requerido' });
 
-    // 1. Buscamos TODOS los modelos disponibles
     const getModelsRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
     const modelsData = await getModelsRes.json();
 
-    if (!modelsData.models) throw new Error("No se pudo listar los modelos. Revisá la API Key.");
+    if (!modelsData.models) throw new Error("No se pudo listar los modelos.");
 
-    // Filtramos para quedarnos solo con los que generan contenido
     const validModels = modelsData.models.filter(m => 
       m.supportedGenerationMethods && m.supportedGenerationMethods.includes("generateContent")
     );
-
-    // Descartamos de entrada los que ya sabemos que Google bloquea o dio de baja
     const fallbackModels = validModels.filter(m => 
       !m.name.includes("2.5-flash") && !m.name.includes("1.5-flash") && !m.name.includes("gemini-pro")
     );
     const modelsToTry = fallbackModels.length > 0 ? fallbackModels : validModels;
 
     const promptMaestro = `Eres un Auditor Cognitivo avanzado, experto en analizar copys publicitarios utilizando marcos teóricos de la psicología cognitiva (Ekman, Zajonc, Teoría de la Mente).
-    Analiza el siguiente texto y responde ÚNICAMENTE con un objeto JSON válido, sin bloques de código markdown ni texto adicional, respetando exactamente esta estructura:
+    Analiza el siguiente texto y responde ÚNICAMENTE con un objeto JSON válido, sin texto introductorio.
     {
       "grafico_cartesiano": { "inicio": 7, "desarrollo": 6, "cierre": 8 },
       "grafico_radial": { "emociones_universales": 7, "reaccion_afectiva": 8, "motivacion_intrinseca": 6, "teoria_de_la_mente": 7, "claridad": 9 },
@@ -48,12 +44,9 @@ module.exports = async function handler(req, res) {
     Texto a analizar: "${texto}"`;
 
     const requestBody = { contents: [{ parts: [{ text: promptMaestro }] }] };
-
     let generateData = null;
-    let lastError = null;
     let success = false;
 
-    // 2. BUCLE INDESTRUCTIBLE: Probamos modelo por modelo hasta que Google acepte uno
     for (const modelObj of modelsToTry) {
         const finalModelName = modelObj.name.replace('models/', '');
         const generateRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${finalModelName}:generateContent?key=${apiKey}`, {
@@ -63,22 +56,24 @@ module.exports = async function handler(req, res) {
         });
 
         generateData = await generateRes.json();
-
         if (generateRes.ok) {
             success = true;
-            break; // ¡Funciona! Cortamos el bucle y avanzamos
-        } else {
-            lastError = generateData; // Guardamos el error y probamos el siguiente de la lista
+            break; 
         }
     }
 
-    if (!success) {
-       throw new Error(JSON.stringify(lastError)); // Si absolutamente todos fallan, mostramos por qué
+    if (!success) throw new Error("Error de conexión con IA.");
+
+    // EL EXTRACTOR QUIRÚRGICO: Agarramos solo lo que está entre { y }
+    const responseText = generateData.candidates[0].content.parts[0].text;
+    const startIndex = responseText.indexOf('{');
+    const endIndex = responseText.lastIndexOf('}');
+
+    if (startIndex === -1 || endIndex === -1) {
+        throw new Error("La IA no devolvió un formato compatible para los gráficos.");
     }
 
-    // 3. Limpieza y respuesta
-    const responseText = generateData.candidates[0].content.parts[0].text;
-    const cleanJson = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
+    const cleanJson = responseText.substring(startIndex, endIndex + 1);
     const jsonResponse = JSON.parse(cleanJson);
     
     return res.status(200).json(jsonResponse);

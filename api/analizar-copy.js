@@ -1,6 +1,15 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 module.exports = async function handler(req, res) {
+  // Configuración de cabeceras para evitar bloqueos CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
@@ -10,15 +19,27 @@ module.exports = async function handler(req, res) {
       return res.status(500).json({ error: "Falta configurar la API Key en Vercel" });
     }
 
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const { texto } = req.body;
+    // Lectura segura del cuerpo de la petición (soporta objeto o texto en Vercel)
+    let bodyData = req.body;
+    if (typeof bodyData === 'string') {
+      try {
+        bodyData = JSON.parse(bodyData);
+      } catch (e) {
+        bodyData = {};
+      }
+    }
+
+    const texto = bodyData && bodyData.texto;
 
     if (!texto) {
       return res.status(400).json({ error: 'El texto es requerido' });
     }
 
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    
+    // Usamos el modelo optimizado actual
     const model = genAI.getGenerativeModel({
-        model: "gemini-1.5-flash",
+        model: "gemini-2.0-flash",
         generationConfig: {
             responseMimeType: "application/json",
         }
@@ -26,9 +47,8 @@ module.exports = async function handler(req, res) {
 
     const promptMaestro = `Eres un Auditor Cognitivo avanzado, experto en analizar copys publicitarios utilizando marcos teóricos de la psicología cognitiva.
     Tarea: Analiza el siguiente texto publicitario y evalúa su rendimiento.
-    Tu respuesta debe ser ÚNICAMENTE un objeto JSON válido, sin texto adicional ni explicaciones.
+    Tu respuesta debe ser ÚNICAMENTE un objeto JSON válido, sin texto adicional ni explicaciones, siguiendo exactamente esta estructura:
 
-    Formato de Salida Requerido (JSON):
     {
       "grafico_cartesiano": {
         "inicio": 7,

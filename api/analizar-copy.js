@@ -22,11 +22,11 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    if (!texto) {
-      return res.status(400).json({ error: 'El texto es requerido' });
-    }
+    if (!texto) return res.status(400).json({ error: 'El texto es requerido' });
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    
+    // Acá está el cambio clave: usamos el modelo 1.5 flash ultra-estable
     const model = genAI.getGenerativeModel({
         model: "gemini-1.5-flash",
         generationConfig: { responseMimeType: "application/json" }
@@ -45,7 +45,6 @@ module.exports = async function handler(req, res) {
     const result = await model.generateContent(promptMaestro);
     const responseText = result.response.text();
     
-    // Limpieza por si la IA responde con envoltorios de código
     const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
     const jsonResponse = JSON.parse(cleanJson);
     

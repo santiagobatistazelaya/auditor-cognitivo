@@ -30,14 +30,13 @@ module.exports = async function handler(req, res) {
       "puntaje": 85,
       "grafico_cartesiano": { "inicio": 7, "desarrollo": 6, "cierre": 8 },
       "grafico_radial": { "emociones_universales": 7, "reaccion_afectiva": 8, "motivacion_intrinseca": 6, "teoria_de_la_mente": 7, "claridad": 9 },
-      "diagnostico_general": "Escribe 3 viñetas contundentes y de alto valor: 1) Fricción principal detectada (dónde falla la retención). 2) Reacción afectiva real del usuario (qué siente visceralmente al leerlo). 3) Oportunidad de conversión (qué cambiar para que convierta más). Usa un tono clínico, directo y persuasivo.",
+      "diagnostico_general": "Escribe 3 viñetas contundentes y de alto valor: 1) Fricción principal detectada. 2) Reacción afectiva real del usuario. 3) Oportunidad de conversión. Usa un tono clínico y persuasivo.",
       "test_ab": { 
-          "opcion_a": "REDISEÑO A: Variante directa y de alta conversión. Frases cortas y anclaje emocional fuerte.", 
-          "opcion_b": "REDISEÑO B: Variante enfocada en reducir la carga cognitiva al mínimo indispensable." 
+          "opcion_a": "REDISEÑO A (Anclaje Emocional): Redacta un anuncio COMPLETO y EXTENSO. Debe incluir: [TÍTULO MAGNÉTICO], [CUERPO DEL TEXTO] desarrollando el dolor y la solución, y un [CTA] claro. Debajo, añade un párrafo detallado justificando clínicamente por qué esta estructura mejora la conversión según Zajonc y Ekman.", 
+          "opcion_b": "REDISEÑO B (Fricción Cero): Redacta una segunda variante COMPLETA. Incluye [TÍTULO], [CUERPO] y [CTA] enfocados en la simplicidad extrema y carga cognitiva mínima. Debajo, añade una justificación técnica de 3 o 4 líneas explicando cómo la Teoría de la Mente aplica a esta optimización." 
       }
     }
     Texto a analizar: "${texto}"`;
-
     // 4. LA CLAVE ACTUALIZADA: Modelos de las familias 3.x y 2.5 con capa gratuita en 2026
     const modelosGratuitos = [
         "gemini-3.5-flash",

@@ -144,36 +144,26 @@
     <!-- DASHBOARD DE RESULTADOS -->
     <div id="dashboard" class="dashboard">
 
-        <!-- Tarjeta de Puntaje -->
-        <div class="result-card" style="text-align: center;">
-            <h3 style="text-transform: uppercase; letter-spacing: 1px; font-size: 0.9rem; color: #666; border: none; margin-bottom: 0;">Puntuación de Inmediatez</h3>
-            <h1 id="puntaje-visual" style="font-size: 4rem; color: #2A9D8F; margin: 5px 0;">-- / 100</h1>
+       <!-- Gráficos a ancho completo y mayor altura -->
+        <div class="result-card" style="margin-bottom: 1.5rem;">
+            <div class="grafico-header">
+                <h3>Flujo de Atención (Cartesiano)</h3>
+                <button onclick="descargarGrafico('graficoCartesiano', 'Flujo_Atencion')" class="btn-export">📥 Exportar</button>
+            </div>
+            <!-- Altura aumentada a 450px -->
+            <div style="position: relative; height: 450px; width: 100%; background: white;" id="bg-cartesiano">
+                <canvas id="graficoCartesiano"></canvas>
+            </div>
         </div>
 
         <div class="result-card">
-            <h3>Diagnóstico Clínico del Copy</h3>
-            <div id="diagnostico-texto" class="diag-box"></div>
-        </div>
-
-       <div class="grid-2">
-            <div class="result-card">
-                <div class="grafico-header">
-                    <h3>Flujo de Atención</h3>
-                    <button onclick="descargarGrafico('graficoCartesiano', 'Flujo_Atencion')" class="btn-export">📥 Exportar</button>
-                </div>
-                <div style="position: relative; height: 300px; width: 100%; background: white;" id="bg-cartesiano">
-                    <canvas id="graficoCartesiano"></canvas>
-                </div>
-            </div>
-
-            <div class="result-card">
-              <div class="grafico-header">
-                  <h3>Matriz Cognitiva</h3>
-                  <button onclick="descargarGrafico('graficoRadial', 'Matriz_Cognitiva')" class="btn-export">📥 Exportar</button>
-              </div>
-              <div style="position: relative; height: 300px; width: 100%; background: white;" id="bg-radial">
-                  <canvas id="graficoRadial"></canvas>
-              </div>
+          <div class="grafico-header">
+              <h3>Matriz Cognitiva (Radial)</h3>
+              <button onclick="descargarGrafico('graficoRadial', 'Matriz_Cognitiva')" class="btn-export">📥 Exportar</button>
+          </div>
+          <!-- Altura aumentada a 450px -->
+          <div style="position: relative; height: 450px; width: 100%; background: white;" id="bg-radial">
+              <canvas id="graficoRadial"></canvas>
           </div>
         </div>
 

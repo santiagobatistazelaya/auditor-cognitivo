@@ -141,32 +141,43 @@
         <button onclick="auditarCopy()" id="btn-auditar">Auditar</button>
     </div>
 
-    <!-- DASHBOARD DE RESULTADOS -->
+  <!-- DASHBOARD DE RESULTADOS -->
     <div id="dashboard" class="dashboard">
 
-       <!-- Gráficos a ancho completo y mayor altura -->
+        <!-- Tarjeta de Puntaje -->
+        <div class="result-card" style="text-align: center;">
+            <h3 style="text-transform: uppercase; letter-spacing: 1px; font-size: 0.9rem; color: #666; border: none; margin-bottom: 0;">Puntuación de Inmediatez</h3>
+            <h1 id="puntaje-visual" style="font-size: 4rem; color: #2A9D8F; margin: 5px 0;">-- / 100</h1>
+        </div>
+
+        <div class="result-card">
+            <h3>Diagnóstico Clínico del Copy</h3>
+            <div id="diagnostico-texto" class="diag-box"></div>
+        </div>
+
+        <!-- Gráfico 1: Cartesiano -->
         <div class="result-card" style="margin-bottom: 1.5rem;">
             <div class="grafico-header">
                 <h3>Flujo de Atención (Cartesiano)</h3>
                 <button onclick="descargarGrafico('graficoCartesiano', 'Flujo_Atencion')" class="btn-export">📥 Exportar</button>
             </div>
-            <!-- Altura aumentada a 450px -->
             <div style="position: relative; height: 450px; width: 100%; background: white;" id="bg-cartesiano">
                 <canvas id="graficoCartesiano"></canvas>
             </div>
         </div>
 
+        <!-- Gráfico 2: Radial -->
         <div class="result-card">
           <div class="grafico-header">
               <h3>Matriz Cognitiva (Radial)</h3>
               <button onclick="descargarGrafico('graficoRadial', 'Matriz_Cognitiva')" class="btn-export">📥 Exportar</button>
           </div>
-          <!-- Altura aumentada a 450px -->
           <div style="position: relative; height: 450px; width: 100%; background: white;" id="bg-radial">
               <canvas id="graficoRadial"></canvas>
           </div>
         </div>
 
+       <!-- LA CAJA DE TEST A/B QUE SE HABÍA BORRADO -->
        <div class="result-card">
             <h3>Optimizaciones Sugeridas (Test A/B)</h3>
             <div style="display: flex; flex-direction: column; gap: 20px;">
@@ -174,11 +185,8 @@
                 <div class="diag-box"><strong>Opción B:</strong><br><br><span id="test-b"></span></div>
             </div>
         </div>
-    </div>
-    
-    <div class="footer-text">
-        Auditor Cognitivo • v1.0 • Zajonc / Ekman / Teoría de la Mente
-    </div>
+        
+    </div> <!-- Cierra dashboard -->
 
     <!-- SCRIPT PRINCIPAL (Todo integrado y funcionando) -->
     <script>

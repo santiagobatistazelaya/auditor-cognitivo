@@ -6,7 +6,7 @@
     <title>Auditor Cognitivo de Ads</title>
     <!-- CDN oficial de Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
+   <style>
         body { 
             background-color: #f6f5ef; 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
@@ -85,6 +85,42 @@
         
         .diag-box { background: #f4f3ed; padding: 1rem; border-radius: 8px; font-size: 0.95rem; line-height: 1.5; color: #444; }
         .bullet-point { margin-bottom: 10px; }
+
+        /* 👇 ESTO ES LO NUEVO AGREGADO 👇 */
+        .btn-export {
+            background-color: transparent;
+            color: #2d5d66;
+            border: 1px solid #2d5d66;
+            border-radius: 6px;
+            padding: 5px 10px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            margin-top: 0;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: fit-content;
+        }
+        .btn-export:hover {
+            background-color: #2d5d66;
+            color: white;
+            opacity: 1; /* Sobreescribe el hover genérico de botones */
+        }
+        .grafico-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 1px solid #f6f5ef;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .grafico-header h3 {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        /* 👆 FIN DE LO NUEVO 👆 */
     </style>
 </head>
 <body>
@@ -119,19 +155,23 @@
             <div id="diagnostico-texto" class="diag-box"></div>
         </div>
 
-        <div class="grid-2">
+       <div class="grid-2">
             <div class="result-card">
-                <h3>Flujo de Atención (Cartesiano)</h3>
-                <!-- Contenedor para forzar el tamaño -->
-                <div style="position: relative; height: 300px; width: 100%;">
+                <div class="grafico-header">
+                    <h3>Flujo de Atención</h3>
+                    <button onclick="descargarGrafico('graficoCartesiano', 'Flujo_Atencion')" class="btn-export">📥 Exportar</button>
+                </div>
+                <div style="position: relative; height: 300px; width: 100%; background: white;" id="bg-cartesiano">
                     <canvas id="graficoCartesiano"></canvas>
                 </div>
             </div>
 
             <div class="result-card">
-              <h3>Matriz Cognitiva (Radial)</h3>
-              <!-- Contenedor para forzar el tamaño -->
-              <div style="position: relative; height: 300px; width: 100%;">
+              <div class="grafico-header">
+                  <h3>Matriz Cognitiva</h3>
+                  <button onclick="descargarGrafico('graficoRadial', 'Matriz_Cognitiva')" class="btn-export">📥 Exportar</button>
+              </div>
+              <div style="position: relative; height: 300px; width: 100%; background: white;" id="bg-radial">
                   <canvas id="graficoRadial"></canvas>
               </div>
           </div>
@@ -255,6 +295,15 @@
                 btn.disabled = false;
                 btn.innerText = 'Auditar';
             }
+        }
+        // Función para descargar los gráficos
+        function descargarGrafico(canvasId, nombreArchivo) {
+            const canvas = document.getElementById(canvasId);
+            // Crea un enlace temporal
+            const link = document.createElement('a');
+            link.download = `${nombreArchivo}_AuditorCognitivo.png`;
+            link.href = canvas.toDataURL('image/png', 1.0); // Calidad máxima
+            link.click();
         }
     </script>
 </body>

@@ -295,12 +295,27 @@
             }
         }
         // Función para descargar los gráficos
+       // Función para descargar los gráficos con fondo blanco
         function descargarGrafico(canvasId, nombreArchivo) {
-            const canvas = document.getElementById(canvasId);
-            // Crea un enlace temporal
+            const originalCanvas = document.getElementById(canvasId);
+            
+            // 1. Creamos un canvas temporal en la memoria
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = originalCanvas.width;
+            tempCanvas.height = originalCanvas.height;
+            const ctx = tempCanvas.getContext('2d');
+            
+            // 2. Le pintamos un fondo blanco sólido
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+            
+            // 3. Dibujamos tu gráfico encima de ese fondo blanco
+            ctx.drawImage(originalCanvas, 0, 0);
+            
+            // 4. Descargamos la imagen final
             const link = document.createElement('a');
             link.download = `${nombreArchivo}_AuditorCognitivo.png`;
-            link.href = canvas.toDataURL('image/png', 1.0); // Calidad máxima
+            link.href = tempCanvas.toDataURL('image/png', 1.0); 
             link.click();
         }
     </script>

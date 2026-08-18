@@ -305,6 +305,29 @@
                         scales: { r: { beginAtZero: true, max: 10 } } 
                     }
                 });
+                                // 5. Dibujar Gráfico de Curva Emocional
+                const ctxCurva = document.getElementById('graficoCurva').getContext('2d');
+                if (chartCurva) chartCurva.destroy();
+                chartCurva = new Chart(ctxCurva, {
+                    type: 'line',
+                    data: {
+                        labels: ['Inicio', 'Desarrollo', 'Cierre'],
+                        datasets: [{
+                            label: 'Estado Emocional',
+                            data: [data.curva_emocional.inicio, data.curva_emocional.desarrollo, data.curva_emocional.cierre],
+                            borderColor: '#2d5d66',
+                            backgroundColor: 'rgba(45, 93, 102, 0.15)',
+                            fill: true,
+                            tension: 0.3,
+                            pointBackgroundColor: '#2d5d66',
+                            pointRadius: 5
+                        }]
+                    },
+                    options: {
+                        maintainAspectRatio: false,
+                        scales: { y: { min: -5, max: 5, ticks: { stepSize: 1 } } }
+                    }
+                });
                 // 5. Scroll automático
                 dashboard.scrollIntoView({ behavior: 'smooth', block: 'start' });
 

@@ -242,7 +242,9 @@
                 document.getElementById('puntaje-visual').innerText = data.puntaje ? `${data.puntaje} / 100` : "85 / 100";
                 
                 // Formatear el diagnóstico general separando en viñetas si trae saltos de línea
-                document.getElementById('diagnostico-texto').innerHTML = data.diagnostico_general;
+               document.getElementById('diagnostico-texto').innerHTML = data.diagnostico_general
++     .map(item => `<div class="bullet-point">🔹 ${item}</div>`)
++     .join('');
                 document.getElementById('test-a').innerText = data.test_ab.opcion_a;
                 document.getElementById('test-b').innerText = data.test_ab.opcion_b;
 

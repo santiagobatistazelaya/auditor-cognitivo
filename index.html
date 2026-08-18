@@ -185,6 +185,16 @@
               <canvas id="graficoRadial"></canvas>
           </div>
         </div>
+                <!-- Gráfico 3: Curva Emocional -->
+        <div class="result-card">
+          <div class="grafico-header">
+              <h3>Curva Emocional</h3>
+              <button onclick="descargarGrafico('graficoCurva', 'Curva_Emocional')" class="btn-export">📥 Exportar</button>
+          </div>
+          <div style="position: relative; height: 450px; width: 100%; background: white;" id="bg-curva">
+              <canvas id="graficoCurva"></canvas>
+          </div>
+        </div>
 
        <!-- LA CAJA DE TEST A/B QUE SE HABÍA BORRADO -->
        <div class="result-card">
@@ -210,6 +220,7 @@
         // Variables globales para los gráficos
         let chartCartesiano = null;
         let chartRadial = null;
+        let chartCurva = null;
 
         async function auditarCopy() {
             const texto = textarea.value.trim();

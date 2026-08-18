@@ -25,15 +25,16 @@ module.exports = async function handler(req, res) {
    // 3. Prompt estricto basado en marcos teóricos (Ekman, Zajonc, ToM)
     const promptMaestro = `Eres un Auditor Cognitivo experto en growth marketing y psicología del consumidor. 
     Analiza este texto publicitario basándote en Ekman, Zajonc y la Teoría de la Mente.
-    Tu respuesta DEBE ser un único objeto JSON válido, sin formato markdown. Usa este formato exacto:
-    +   IMPORTANTE: "diagnostico_general" debe ser un array de exactamente 3 strings (no un solo string largo).
+     Tu respuesta DEBE ser un único objeto JSON válido, sin formato markdown. Usa este formato exacto:
+    IMPORTANTE: "diagnostico_general" debe ser un array de exactamente 3 strings (no un solo string largo).
     {
       "puntaje": 85,
       "grafico_cartesiano": { "inicio": 7, "desarrollo": 6, "cierre": 8 },
       "grafico_radial": { "emociones_universales": 7, "reaccion_afectiva": 8, "motivacion_intrinseca": 6, "teoria_de_la_mente": 7, "claridad": 9 },
-+ "diagnostico_general": ["Fricción principal detectada: (una viñeta contundente y clínica)", "Reacción afectiva real del usuario: (otra viñeta)", "Oportunidad de conversión: (otra viñeta)"],      "test_ab": { 
-          "opcion_a": "REDISEÑO A (Anclaje Emocional): Redacta un anuncio COMPLETO y EXTENSO. Debe incluir: [TÍTULO MAGNÉTICO], [CUERPO DEL TEXTO] desarrollando el dolor y la solución, y un [CTA] claro. Debajo, añade un párrafo detallado justificando clínicamente por qué esta estructura mejora la conversión según Zajonc y Ekman.", 
-          "opcion_b": "REDISEÑO B (Fricción Cero): Redacta una segunda variante COMPLETA. Incluye [TÍTULO], [CUERPO] y [CTA] enfocados en la simplicidad extrema y carga cognitiva mínima. Debajo, añade una justificación técnica de 3 o 4 líneas explicando cómo la Teoría de la Mente aplica a esta optimización." 
+      "diagnostico_general": ["Fricción principal detectada: (una viñeta contundente y clínica)", "Reacción afectiva real del usuario: (otra viñeta)", "Oportunidad de conversión: (otra viñeta)"],
+      "test_ab": { 
+          "opcion_a": "REDISEÑO A (Anclaje Emocional): ...", 
+          "opcion_b": "REDISEÑO B (Fricción Cero): ..." 
       }
     }
     Texto a analizar: "${texto}"`;

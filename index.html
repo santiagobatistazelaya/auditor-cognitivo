@@ -243,8 +243,8 @@
                 
                 // Formatear el diagnóstico general separando en viñetas si trae saltos de línea
                document.getElementById('diagnostico-texto').innerHTML = data.diagnostico_general
-+     .map(item => `<div class="bullet-point">🔹 ${item}</div>`)
-+     .join('');
+     .map(item => `<div class="bullet-point">🔹 ${item}</div>`)
+     .join('');
                 document.getElementById('test-a').innerText = data.test_ab.opcion_a;
                 document.getElementById('test-b').innerText = data.test_ab.opcion_b;
 

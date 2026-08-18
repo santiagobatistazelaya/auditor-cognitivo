@@ -27,10 +27,12 @@ module.exports = async function handler(req, res) {
     Analiza este texto publicitario basándote en Ekman, Zajonc y la Teoría de la Mente.
      Tu respuesta DEBE ser un único objeto JSON válido, sin formato markdown. Usa este formato exacto:
     IMPORTANTE: "diagnostico_general" debe ser un array de exactamente 3 strings (no un solo string largo).
+    IMPORTANTE: "curva_emocional" usa una escala de -5 (rechazo/frustración) a +5 (entusiasmo/confianza) para medir el estado emocional del lector en cada tramo del copy.
     {
       "puntaje": 85,
       "grafico_cartesiano": { "inicio": 7, "desarrollo": 6, "cierre": 8 },
       "grafico_radial": { "emociones_universales": 7, "reaccion_afectiva": 8, "motivacion_intrinseca": 6, "teoria_de_la_mente": 7, "claridad": 9 },
+      "curva_emocional": { "inicio": -2, "desarrollo": 1, "cierre": 4 },
       "diagnostico_general": ["Fricción principal detectada: (una viñeta contundente y clínica)", "Reacción afectiva real del usuario: (otra viñeta)", "Oportunidad de conversión: (otra viñeta)"],
       "test_ab": { 
           "opcion_a": "REDISEÑO A (Anclaje Emocional): ...", 

@@ -86,7 +86,6 @@
         .diag-box { background: #f4f3ed; padding: 1rem; border-radius: 8px; font-size: 0.95rem; line-height: 1.5; color: #444; }
         .bullet-point { margin-bottom: 10px; }
 
-        /* 👇 ESTO ES LO NUEVO AGREGADO 👇 */
         .btn-export {
             background-color: transparent;
             color: #2d5d66;
@@ -105,7 +104,7 @@
         .btn-export:hover {
             background-color: #2d5d66;
             color: white;
-            opacity: 1; /* Sobreescribe el hover genérico de botones */
+            opacity: 1;
         }
         .grafico-header {
             display: flex;
@@ -120,7 +119,14 @@
             margin-bottom: 0;
             padding-bottom: 0;
         }
-        /* 👆 FIN DE LO NUEVO 👆 */
+
+        /* 👇 NIVEL 3: Toggle Ads / Soporte 👇 */
+        .toggle-btn {
+            background: #f4f3ed; color: #555; border: 1px solid #d1d1c7;
+            border-radius: 8px; padding: 0.6rem 1rem; font-size: 0.9rem;
+            font-weight: 600; cursor: pointer; flex: 1; margin-top: 0;
+        }
+        .toggle-btn.active { background-color: #2d5d66; color: white; border-color: #2d5d66; }
     </style>
     <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-CDYYXBD6QV"></script>
@@ -134,18 +140,20 @@
 </head>
 <body>
 
-    <!-- CABECERA Y ENTRADA (Lo que se había borrado) -->
+    <!-- CABECERA Y ENTRADA -->
     <div class="header-container">
         <div class="badge"> Análisis cognitivo-emocional</div>
         <h1>Auditor Cognitivo de Ads</h1>
         <p class="subtitle">Analiza la fricción cognitiva y la reacción afectiva de tus campañas en segundos.</p>
     </div>
 
-       <div class="main-card">
+    <div class="main-card">
+        <!-- NIVEL 3: Toggle Ads / Soporte -->
         <div style="display:flex; gap:8px; margin-bottom:1rem;">
             <button type="button" id="btn-modo-ads" onclick="setModo('ads')" class="toggle-btn active">📢 Ads</button>
             <button type="button" id="btn-modo-soporte" onclick="setModo('soporte')" class="toggle-btn">🛟 Soporte</button>
         </div>
+
         <div class="card-header">
             <span>Copy del anuncio</span>
             <span id="char-counter">0 caracteres</span>
@@ -189,7 +197,8 @@
               <canvas id="graficoRadial"></canvas>
           </div>
         </div>
-                <!-- Gráfico 3: Curva Emocional -->
+
+        <!-- Gráfico 3: Curva Emocional -->
         <div class="result-card">
           <div class="grafico-header">
               <h3>Curva Emocional</h3>
@@ -200,7 +209,7 @@
           </div>
         </div>
 
-       <!-- LA CAJA DE TEST A/B QUE SE HABÍA BORRADO -->
+       <!-- TEST A/B -->
        <div class="result-card">
             <h3>Optimizaciones Sugeridas (Test A/B)</h3>
             <div style="display: flex; flex-direction: column; gap: 20px;">
@@ -211,7 +220,7 @@
         
     </div> <!-- Cierra dashboard -->
 
-    <!-- SCRIPT PRINCIPAL (Todo integrado y funcionando) -->
+    <!-- SCRIPT PRINCIPAL -->
     <script>
         // Contador de caracteres
         const textarea = document.getElementById('texto-anuncio');
@@ -226,6 +235,14 @@
         let chartRadial = null;
         let chartCurva = null;
 
+        // NIVEL 3: modo Ads / Soporte
+        let modoActual = 'ads';
+        function setModo(modo) {
+            modoActual = modo;
+            document.getElementById('btn-modo-ads').classList.toggle('active', modo === 'ads');
+            document.getElementById('btn-modo-soporte').classList.toggle('active', modo === 'soporte');
+        }
+
         async function auditarCopy() {
             const texto = textarea.value.trim();
             if (!texto) {
@@ -238,11 +255,10 @@
             btn.innerText = 'Analizando variables cognitivas...';
 
             try {
-                // Llamada al servidor (tu código de Vercel/Google AI)
                 const response = await fetch('/api/analizar-copy', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ texto: texto })
+                    body: JSON.stringify({ texto: texto, modo: modoActual })
                 });
 
                 if (!response.ok) throw new Error("Falla en la conexión con la IA");
@@ -256,10 +272,11 @@
                 // 2. Llenar los textos y el puntaje
                 document.getElementById('puntaje-visual').innerText = data.puntaje ? `${data.puntaje} / 100` : "85 / 100";
                 
-                // Formatear el diagnóstico general separando en viñetas si trae saltos de línea
-               document.getElementById('diagnostico-texto').innerHTML = data.diagnostico_general
-     .map(item => `<div class="bullet-point">🔹 ${item}</div>`)
-     .join('');
+                // NIVEL 1: diagnóstico como lista de viñetas
+                document.getElementById('diagnostico-texto').innerHTML = data.diagnostico_general
+                    .map(item => `<div class="bullet-point">🔹 ${item}</div>`)
+                    .join('');
+
                 document.getElementById('test-a').innerText = data.test_ab.opcion_a;
                 document.getElementById('test-b').innerText = data.test_ab.opcion_b;
 
@@ -278,7 +295,7 @@
                         }]
                     },
                     options: { 
-                        maintainAspectRatio: false, /* ACÁ ESTÁ EL CAMBIO */
+                        maintainAspectRatio: false,
                         scales: { y: { beginAtZero: true, max: 10 } } 
                     }
                 });
@@ -305,11 +322,12 @@
                         }]
                     },
                     options: { 
-                        maintainAspectRatio: false, /* ACÁ ESTÁ EL CAMBIO */
+                        maintainAspectRatio: false,
                         scales: { r: { beginAtZero: true, max: 10 } } 
                     }
                 });
-                                // 5. Dibujar Gráfico de Curva Emocional
+
+                // 5. NIVEL 2: Dibujar Gráfico de Curva Emocional
                 const ctxCurva = document.getElementById('graficoCurva').getContext('2d');
                 if (chartCurva) chartCurva.destroy();
                 chartCurva = new Chart(ctxCurva, {
@@ -332,7 +350,8 @@
                         scales: { y: { min: -5, max: 5, ticks: { stepSize: 1 } } }
                     }
                 });
-                // 5. Scroll automático
+
+                // 6. Scroll automático
                 dashboard.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
             } catch (error) {
@@ -343,25 +362,21 @@
                 btn.innerText = 'Auditar';
             }
         }
-        // Función para descargar los gráficos
-       // Función para descargar los gráficos con fondo blanco
+
+        // Función para descargar los gráficos con fondo blanco
         function descargarGrafico(canvasId, nombreArchivo) {
             const originalCanvas = document.getElementById(canvasId);
             
-            // 1. Creamos un canvas temporal en la memoria
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = originalCanvas.width;
             tempCanvas.height = originalCanvas.height;
             const ctx = tempCanvas.getContext('2d');
             
-            // 2. Le pintamos un fondo blanco sólido
             ctx.fillStyle = '#FFFFFF';
             ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
             
-            // 3. Dibujamos tu gráfico encima de ese fondo blanco
             ctx.drawImage(originalCanvas, 0, 0);
             
-            // 4. Descargamos la imagen final
             const link = document.createElement('a');
             link.download = `${nombreArchivo}_AuditorCognitivo.png`;
             link.href = tempCanvas.toDataURL('image/png', 1.0); 

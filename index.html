@@ -161,7 +161,13 @@
             <button type="button" id="btn-modo-ads" onclick="setModo('ads')" class="toggle-btn active">📢 Ads</button>
             <button type="button" id="btn-modo-soporte" onclick="setModo('soporte')" class="toggle-btn">🛟 Soporte</button>
         </div>
-
+        <div style="display:flex; gap:8px; margin-bottom:0.5rem;">
+            <button type="button" id="btn-modo-ads" onclick="setModo('ads')" class="toggle-btn active">📢 Ads</button>
+            <button type="button" id="btn-modo-soporte" onclick="setModo('soporte')" class="toggle-btn">🛟 Soporte</button>
+        </div>
+        <p id="modo-descripcion" style="font-size:0.85rem; color:#666; margin:0 0 1rem 0; line-height:1.4;">
+            Pegá un anuncio o copy de venta. El Auditor mide si genera deseo y motiva la acción.
+        </p>
         <div class="card-header">
             <span>Copy del anuncio</span>
             <span id="char-counter">0 caracteres</span>
@@ -253,12 +259,14 @@
 
         // Modo Ads / Soporte
         let modoActual = 'ads';
-        function setModo(modo) {
+               function setModo(modo) {
             modoActual = modo;
             document.getElementById('btn-modo-ads').classList.toggle('active', modo === 'ads');
             document.getElementById('btn-modo-soporte').classList.toggle('active', modo === 'soporte');
+           document.getElementById('modo-descripcion').innerText = modo === 'ads'
+               ? 'Pegá un anuncio o copy de venta. El Auditor mide si genera deseo y motiva la acción.'
+               : 'Pegá un mensaje de soporte, bot o respuesta a un reclamo. El Auditor mide si baja la ansiedad del cliente en vez de aumentarla.';
         }
-
         async function auditarCopy() {
             const texto = textarea.value.trim();
             if (!texto) {

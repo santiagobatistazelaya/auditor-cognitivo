@@ -327,3 +327,79 @@
                         labels: ['Emociones (Ekman)', 'Reacción (Zajonc)', 'Motivación', 'Teoría Mente', 'Claridad'],
                         datasets: [{
                             label: 'Puntaje',
+                            data: [
+                                data.grafico_radial.emociones_universales, 
+                                data.grafico_radial.reaccion_afectiva, 
+                                data.grafico_radial.motivacion_intrinseca, 
+                                data.grafico_radial.teoria_de_la_mente, 
+                                data.grafico_radial.claridad
+                            ],
+                            backgroundColor: 'rgba(45, 93, 102, 0.2)',
+                            borderColor: '#2d5d66',
+                            pointBackgroundColor: '#2d5d66'
+                        }]
+                    },
+                    options: { 
+                        maintainAspectRatio: false,
+                        scales: { r: { beginAtZero: true, max: 10 } } 
+                    }
+                });
+
+                // 5. Dibujar Gráfico de Curva Emocional
+                const ctxCurva = document.getElementById('graficoCurva').getContext('2d');
+                if (chartCurva) chartCurva.destroy();
+                chartCurva = new Chart(ctxCurva, {
+                    type: 'line',
+                    data: {
+                        labels: ['Inicio', 'Desarrollo', 'Cierre'],
+                        datasets: [{
+                            label: 'Estado Emocional',
+                            data: [data.curva_emocional.inicio, data.curva_emocional.desarrollo, data.curva_emocional.cierre],
+                            borderColor: '#2d5d66',
+                            backgroundColor: 'rgba(45, 93, 102, 0.15)',
+                            fill: true,
+                            tension: 0.3,
+                            pointBackgroundColor: '#2d5d66',
+                            pointRadius: 5
+                        }]
+                    },
+                    options: {
+                        maintainAspectRatio: false,
+                        scales: { y: { min: -5, max: 5, ticks: { stepSize: 1 } } }
+                    }
+                });
+
+                // 6. Scroll automático
+                dashboard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            } catch (error) {
+                console.error('Error:', error);
+                alert("Hubo un error al auditar el copy. Revisá la consola.");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Auditar';
+            }
+        }
+
+        // Función para descargar los gráficos con fondo blanco
+        function descargarGrafico(canvasId, nombreArchivo) {
+            const originalCanvas = document.getElementById(canvasId);
+            
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = originalCanvas.width;
+            tempCanvas.height = originalCanvas.height;
+            const ctx = tempCanvas.getContext('2d');
+            
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+            
+            ctx.drawImage(originalCanvas, 0, 0);
+            
+            const link = document.createElement('a');
+            link.download = `${nombreArchivo}_AuditorCognitivo.png`;
+            link.href = tempCanvas.toDataURL('image/png', 1.0); 
+            link.click();
+        }
+    </script>
+</body>
+</html>

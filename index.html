@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Auditor Cognitivo de Ads</title>
-    <!-- CDN oficial de Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
    <style>
         body { 
@@ -128,6 +127,18 @@
         }
         .toggle-btn.active { background-color: #2d5d66; color: white; border-color: #2d5d66; }
 
+        /* Aclaración de modo: más grande y en negrita */
+        .modo-descripcion {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #2d5d66;
+            background: #eef3f2;
+            border-radius: 8px;
+            padding: 0.7rem 0.9rem;
+            margin: 0.7rem 0 1.2rem 0;
+            line-height: 1.4;
+        }
+
         /* "Cuándo usar" en el Test A/B */
         .cuando-usar {
             color: #2d5d66;
@@ -136,8 +147,7 @@
             margin: 6px 0;
         }
     </style>
-    <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-CDYYXBD6QV"></script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-CDYYXBD6QV"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
@@ -148,7 +158,6 @@
 </head>
 <body>
 
-    <!-- CABECERA Y ENTRADA -->
     <div class="header-container">
         <div class="badge"> Análisis cognitivo-emocional</div>
         <h1>Auditor Cognitivo de Ads</h1>
@@ -156,18 +165,15 @@
     </div>
 
     <div class="main-card">
-        <!-- Toggle Ads / Soporte -->
-        <div style="display:flex; gap:8px; margin-bottom:1rem;">
+        <!-- Toggle Ads / Soporte (ÚNICO) -->
+        <div style="display:flex; gap:8px;">
             <button type="button" id="btn-modo-ads" onclick="setModo('ads')" class="toggle-btn active">📢 Ads</button>
             <button type="button" id="btn-modo-soporte" onclick="setModo('soporte')" class="toggle-btn">🛟 Soporte</button>
         </div>
-        <div style="display:flex; gap:8px; margin-bottom:0.5rem;">
-            <button type="button" id="btn-modo-ads" onclick="setModo('ads')" class="toggle-btn active">📢 Ads</button>
-            <button type="button" id="btn-modo-soporte" onclick="setModo('soporte')" class="toggle-btn">🛟 Soporte</button>
-        </div>
-        <p id="modo-descripcion" style="font-size:0.85rem; color:#666; margin:0 0 1rem 0; line-height:1.4;">
+        <p id="modo-descripcion" class="modo-descripcion">
             Pegá un anuncio o copy de venta. El Auditor mide si genera deseo y motiva la acción.
         </p>
+
         <div class="card-header">
             <span>Copy del anuncio</span>
             <span id="char-counter">0 caracteres</span>
@@ -176,10 +182,8 @@
         <button onclick="auditarCopy()" id="btn-auditar">Auditar</button>
     </div>
 
-  <!-- DASHBOARD DE RESULTADOS -->
     <div id="dashboard" class="dashboard">
 
-        <!-- Tarjeta de Puntaje -->
         <div class="result-card" style="text-align: center;">
             <h3 style="text-transform: uppercase; letter-spacing: 1px; font-size: 0.9rem; color: #666; border: none; margin-bottom: 0;">Puntuación de Inmediatez</h3>
             <h1 id="puntaje-visual" style="font-size: 4rem; color: #2A9D8F; margin: 5px 0;">-- / 100</h1>
@@ -190,7 +194,6 @@
             <div id="diagnostico-texto" class="diag-box"></div>
         </div>
 
-        <!-- Gráfico 1: Cartesiano -->
         <div class="result-card" style="margin-bottom: 1.5rem;">
             <div class="grafico-header">
                 <h3>Flujo de Atención (Cartesiano)</h3>
@@ -201,7 +204,6 @@
             </div>
         </div>
 
-        <!-- Gráfico 2: Radial -->
         <div class="result-card">
           <div class="grafico-header">
               <h3>Matriz Cognitiva (Radial)</h3>
@@ -212,7 +214,6 @@
           </div>
         </div>
 
-        <!-- Gráfico 3: Curva Emocional -->
         <div class="result-card">
           <div class="grafico-header">
               <h3>Curva Emocional</h3>
@@ -223,7 +224,6 @@
           </div>
         </div>
 
-       <!-- TEST A/B -->
        <div class="result-card">
             <h3>Optimizaciones Sugeridas (Test A/B)</h3>
             <div style="display: flex; flex-direction: column; gap: 20px;">
@@ -240,11 +240,9 @@
             </div>
         </div>
         
-    </div> <!-- Cierra dashboard -->
+    </div>
 
-    <!-- SCRIPT PRINCIPAL -->
     <script>
-        // Contador de caracteres
         const textarea = document.getElementById('texto-anuncio');
         const counter = document.getElementById('char-counter');
         
@@ -252,21 +250,20 @@
             counter.textContent = textarea.value.length + ' caracteres';
         });
 
-        // Variables globales para los gráficos
         let chartCartesiano = null;
         let chartRadial = null;
         let chartCurva = null;
 
-        // Modo Ads / Soporte
         let modoActual = 'ads';
-               function setModo(modo) {
+        function setModo(modo) {
             modoActual = modo;
             document.getElementById('btn-modo-ads').classList.toggle('active', modo === 'ads');
             document.getElementById('btn-modo-soporte').classList.toggle('active', modo === 'soporte');
-           document.getElementById('modo-descripcion').innerText = modo === 'ads'
-               ? 'Pegá un anuncio o copy de venta. El Auditor mide si genera deseo y motiva la acción.'
-               : 'Pegá un mensaje de soporte, bot o respuesta a un reclamo. El Auditor mide si baja la ansiedad del cliente en vez de aumentarla.';
+            document.getElementById('modo-descripcion').innerText = modo === 'ads'
+                ? 'Pegá un anuncio o copy de venta. El Auditor mide si genera deseo y motiva la acción.'
+                : 'Pegá un mensaje de soporte, bot o respuesta a un reclamo. El Auditor mide si baja la ansiedad del cliente en vez de aumentarla.';
         }
+
         async function auditarCopy() {
             const texto = textarea.value.trim();
             if (!texto) {
@@ -289,14 +286,11 @@
                 
                 const data = await response.json();
 
-                // 1. Mostrar el dashboard
                 const dashboard = document.getElementById('dashboard');
                 dashboard.style.display = 'flex';
 
-                // 2. Llenar los textos y el puntaje
                 document.getElementById('puntaje-visual').innerText = data.puntaje ? `${data.puntaje} / 100` : "85 / 100";
                 
-                // Diagnóstico como lista de viñetas
                 document.getElementById('diagnostico-texto').innerHTML = data.diagnostico_general
                     .map(item => `<div class="bullet-point">🔹 ${item}</div>`)
                     .join('');
@@ -306,7 +300,6 @@
                 document.getElementById('test-a-uso').innerText = '📌 ' + data.test_ab.opcion_a_cuando_usar;
                 document.getElementById('test-b-uso').innerText = '📌 ' + data.test_ab.opcion_b_cuando_usar;
 
-                // 3. Dibujar Gráfico Cartesiano
                 const ctxCartesiano = document.getElementById('graficoCartesiano').getContext('2d');
                 if (chartCartesiano) chartCartesiano.destroy();
                 chartCartesiano = new Chart(ctxCartesiano, {
@@ -326,7 +319,6 @@
                     }
                 });
 
-                // 4. Dibujar Gráfico Radial
                 const ctxRadial = document.getElementById('graficoRadial').getContext('2d');
                 if (chartRadial) chartRadial.destroy();
                 chartRadial = new Chart(ctxRadial, {
@@ -353,7 +345,6 @@
                     }
                 });
 
-                // 5. Dibujar Gráfico de Curva Emocional
                 const ctxCurva = document.getElementById('graficoCurva').getContext('2d');
                 if (chartCurva) chartCurva.destroy();
                 chartCurva = new Chart(ctxCurva, {
@@ -377,7 +368,6 @@
                     }
                 });
 
-                // 6. Scroll automático
                 dashboard.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
             } catch (error) {
@@ -389,20 +379,15 @@
             }
         }
 
-        // Función para descargar los gráficos con fondo blanco
         function descargarGrafico(canvasId, nombreArchivo) {
             const originalCanvas = document.getElementById(canvasId);
-            
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = originalCanvas.width;
             tempCanvas.height = originalCanvas.height;
             const ctx = tempCanvas.getContext('2d');
-            
             ctx.fillStyle = '#FFFFFF';
             ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-            
             ctx.drawImage(originalCanvas, 0, 0);
-            
             const link = document.createElement('a');
             link.download = `${nombreArchivo}_AuditorCognitivo.png`;
             link.href = tempCanvas.toDataURL('image/png', 1.0); 

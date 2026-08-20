@@ -141,7 +141,11 @@
         <p class="subtitle">Analiza la fricción cognitiva y la reacción afectiva de tus campañas en segundos.</p>
     </div>
 
-    <div class="main-card">
+       <div class="main-card">
+        <div style="display:flex; gap:8px; margin-bottom:1rem;">
+            <button type="button" id="btn-modo-ads" onclick="setModo('ads')" class="toggle-btn active">📢 Ads</button>
+            <button type="button" id="btn-modo-soporte" onclick="setModo('soporte')" class="toggle-btn">🛟 Soporte</button>
+        </div>
         <div class="card-header">
             <span>Copy del anuncio</span>
             <span id="char-counter">0 caracteres</span>

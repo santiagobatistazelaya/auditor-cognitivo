@@ -119,15 +119,14 @@
             padding-bottom: 0;
         }
 
-        /* Toggle Ads / Soporte */
+        /* Toggle Ads / Soporte / Landing */
         .toggle-btn {
             background: #f4f3ed; color: #555; border: 1px solid #d1d1c7;
-            border-radius: 8px; padding: 0.6rem 1rem; font-size: 0.9rem;
+            border-radius: 8px; padding: 0.6rem 0.8rem; font-size: 0.85rem;
             font-weight: 600; cursor: pointer; flex: 1; margin-top: 0;
         }
         .toggle-btn.active { background-color: #2d5d66; color: white; border-color: #2d5d66; }
 
-        /* Aclaración de modo: más grande y en negrita */
         .modo-descripcion {
             font-size: 0.95rem;
             font-weight: 700;
@@ -139,7 +138,6 @@
             line-height: 1.4;
         }
 
-        /* "Cuándo usar" en el Test A/B */
         .cuando-usar {
             color: #2d5d66;
             font-weight: 600;
@@ -165,17 +163,17 @@
     </div>
 
     <div class="main-card">
-        <!-- Toggle Ads / Soporte (ÚNICO) -->
         <div style="display:flex; gap:8px;">
             <button type="button" id="btn-modo-ads" onclick="setModo('ads')" class="toggle-btn active">📢 Ads</button>
             <button type="button" id="btn-modo-soporte" onclick="setModo('soporte')" class="toggle-btn">🛟 Soporte</button>
+            <button type="button" id="btn-modo-landing" onclick="setModo('landing')" class="toggle-btn">🔗 Landing</button>
         </div>
         <p id="modo-descripcion" class="modo-descripcion">
             Pegá un anuncio o copy de venta. El Auditor mide si genera deseo y motiva la acción.
         </p>
 
         <div class="card-header">
-            <span>Copy del anuncio</span>
+            <span id="input-label">Copy del anuncio</span>
             <span id="char-counter">0 caracteres</span>
         </div>
         <textarea id="texto-anuncio" placeholder="Pegá aquí el texto de tu anuncio para iniciar el diagnóstico..."></textarea>
@@ -192,6 +190,11 @@
         <div class="result-card">
             <h3>Diagnóstico Clínico del Copy</h3>
             <div id="diagnostico-texto" class="diag-box"></div>
+        </div>
+
+        <div class="result-card" id="card-diagnostico-cognitivo" style="display:none;">
+            <h3>Lectura Cognitiva Complementaria (Ekman / Zajonc / Teoría de la Mente)</h3>
+            <div id="diagnostico-cognitivo-texto" class="diag-box"></div>
         </div>
 
         <div class="result-card" style="margin-bottom: 1.5rem;">
@@ -259,21 +262,40 @@
             modoActual = modo;
             document.getElementById('btn-modo-ads').classList.toggle('active', modo === 'ads');
             document.getElementById('btn-modo-soporte').classList.toggle('active', modo === 'soporte');
-            document.getElementById('modo-descripcion').innerText = modo === 'ads'
-                ? 'Pegá un anuncio o copy de venta. El Auditor mide si genera deseo y motiva la acción.'
-                : 'Pegá un mensaje de soporte, bot o respuesta a un reclamo. El Auditor mide si baja la ansiedad del cliente en vez de aumentarla.';
+            document.getElementById('btn-modo-landing').classList.toggle('active', modo === 'landing');
+
+            const descripcion = document.getElementById('modo-descripcion');
+            const label = document.getElementById('input-label');
+
+            if (modo === 'ads') {
+                descripcion.innerText = 'Pegá un anuncio o copy de venta. El Auditor mide si genera deseo y motiva la acción.';
+                label.innerText = 'Copy del anuncio';
+                textarea.placeholder = 'Pegá aquí el texto de tu anuncio para iniciar el diagnóstico...';
+            } else if (modo === 'soporte') {
+                descripcion.innerText = 'Pegá un mensaje de soporte, bot o respuesta a un reclamo. El Auditor mide si baja la ansiedad del cliente en vez de aumentarla.';
+                label.innerText = 'Mensaje de soporte';
+                textarea.placeholder = 'Pegá aquí el mensaje de soporte o atención al cliente...';
+            } else if (modo === 'landing') {
+                descripcion.innerText = 'Pegá la URL completa de una landing page. El Auditor la analiza con el Modelo LIFT (Propuesta de Valor, Relevancia, Claridad, Ansiedad, Urgencia).';
+                label.innerText = 'URL de la landing';
+                textarea.placeholder = 'https://ejemplo.com/landing';
+            }
         }
 
         async function auditarCopy() {
             const texto = textarea.value.trim();
             if (!texto) {
-                alert("Por favor, ingresá el copy de tu anuncio primero.");
+                alert("Por favor, ingresá el texto o la URL primero.");
+                return;
+            }
+            if (modoActual === 'landing' && !/^https?:\/\//i.test(texto)) {
+                alert("La URL debe empezar con http:// o https://");
                 return;
             }
 
             const btn = document.getElementById('btn-auditar');
             btn.disabled = true;
-            btn.innerText = 'Analizando variables cognitivas...';
+            btn.innerText = modoActual === 'landing' ? 'Leyendo la landing page...' : 'Analizando variables cognitivas...';
 
             try {
                 const response = await fetch('/api/analizar-copy', {
@@ -282,9 +304,12 @@
                     body: JSON.stringify({ texto: texto, modo: modoActual })
                 });
 
-                if (!response.ok) throw new Error("Falla en la conexión con la IA");
-                
                 const data = await response.json();
+
+                if (!response.ok) {
+                    alert(data.error || "Hubo un error al auditar el copy.");
+                    return;
+                }
 
                 const dashboard = document.getElementById('dashboard');
                 dashboard.style.display = 'flex';
@@ -294,6 +319,16 @@
                 document.getElementById('diagnostico-texto').innerHTML = data.diagnostico_general
                     .map(item => `<div class="bullet-point">🔹 ${item}</div>`)
                     .join('');
+
+                const cardCognitiva = document.getElementById('card-diagnostico-cognitivo');
+                if (data.diagnostico_cognitivo && data.diagnostico_cognitivo.length > 0) {
+                    document.getElementById('diagnostico-cognitivo-texto').innerHTML = data.diagnostico_cognitivo
+                        .map(item => `<div class="bullet-point">🧠 ${item}</div>`)
+                        .join('');
+                    cardCognitiva.style.display = 'block';
+                } else {
+                    cardCognitiva.style.display = 'none';
+                }
 
                 document.getElementById('test-a').innerText = data.test_ab.opcion_a;
                 document.getElementById('test-b').innerText = data.test_ab.opcion_b;
@@ -305,10 +340,10 @@
                 chartCartesiano = new Chart(ctxCartesiano, {
                     type: 'bar',
                     data: {
-                        labels: ['Inicio', 'Desarrollo', 'Cierre'],
+                        labels: data.cartesiano.labels,
                         datasets: [{
-                            label: 'Nivel de Retención',
-                            data: [data.grafico_cartesiano.inicio, data.grafico_cartesiano.desarrollo, data.grafico_cartesiano.cierre],
+                            label: 'Nivel de Captación',
+                            data: data.cartesiano.valores,
                             backgroundColor: '#2d5d66',
                             borderRadius: 4
                         }]
@@ -324,16 +359,10 @@
                 chartRadial = new Chart(ctxRadial, {
                     type: 'radar',
                     data: {
-                        labels: ['Emociones (Ekman)', 'Reacción (Zajonc)', 'Motivación', 'Teoría Mente', 'Claridad'],
+                        labels: data.radar.labels,
                         datasets: [{
                             label: 'Puntaje',
-                            data: [
-                                data.grafico_radial.emociones_universales, 
-                                data.grafico_radial.reaccion_afectiva, 
-                                data.grafico_radial.motivacion_intrinseca, 
-                                data.grafico_radial.teoria_de_la_mente, 
-                                data.grafico_radial.claridad
-                            ],
+                            data: data.radar.valores,
                             backgroundColor: 'rgba(45, 93, 102, 0.2)',
                             borderColor: '#2d5d66',
                             pointBackgroundColor: '#2d5d66'

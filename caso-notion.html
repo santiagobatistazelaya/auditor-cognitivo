@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Caso de Estudio CRO: Auditando Notion con el Modelo LIFT</title>
+<style>
+  :root{
+    --bg:#faf8f3; --card:#faf8f3; --ink:#1a1a1a; --sub:#6b6b6b;
+    --accent:#1a1a1a; --accent-soft:#efebe2; --line:#ddd7c8;
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  html{scroll-padding-top:env(safe-area-inset-top,0px); color-scheme:light;}
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:Georgia,"Times New Roman",serif;
+    line-height:1.6;
+  }
+  .wrap{max-width:720px; margin:0 auto; padding:0 1.25rem 4rem;}
+  header{
+    text-align:center; margin-bottom:2.5rem;
+    padding:3.5rem 1rem 2rem;
+  }
+  .badge{
+    display:inline-flex; align-items:center; gap:6px; font-size:.7rem; letter-spacing:2px; text-transform:uppercase;
+    color:var(--sub); border:1px solid var(--line); border-radius:20px;
+    padding:5px 14px; margin-bottom:1.4rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-weight:600;
+  }
+  h1{
+    font-size:2rem; font-weight:700; margin:0 0 1.2rem; letter-spacing:0;
+    line-height:1.25; font-family:Georgia,"Times New Roman",serif;
+  }
+  .byline{
+    color:var(--sub); font-size:.8rem; margin:0; letter-spacing:2px; text-transform:uppercase;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-weight:600;
+  }
+  section{background:var(--card); border:1px solid var(--line); border-radius:0; padding:1.8rem 0; margin-bottom:0; border-left:none; border-right:none; border-top:none; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;}
+  section + section{border-top:1px solid var(--line);}
+  h2{
+    font-size:.75rem; margin:0 0 1.1rem; letter-spacing:2px; text-transform:uppercase;
+    color:var(--ink); font-weight:600; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+  }
+  p{margin:0 0 .8rem; color:var(--ink);}
+  .sub{color:var(--sub); font-size:.9rem;}
+  .bullet{display:flex; gap:.7rem; margin-bottom:.9rem; align-items:flex-start;}
+  .bullet .dot{color:var(--ink); flex-shrink:0; font-weight:900;}
+  .bar-row{margin-bottom:.9rem;}
+  .bar-label{display:flex; justify-content:space-between; font-size:.85rem; margin-bottom:4px;}
+  .bar-track{background:var(--accent-soft); border-radius:0; height:8px; overflow:hidden;}
+  .bar-fill{background:var(--accent); height:100%; border-radius:0;}
+  .wire{display:flex; gap:1px; margin:1rem 0; background:var(--line);}
+  .wire-block{flex:1; background:var(--card); padding:1.1rem .6rem; text-align:center;}
+  .wire-block .score{font-weight:700; color:var(--ink); font-size:1.5rem; font-family:Georgia,serif;}
+  .wire-block .name{font-size:.7rem; color:var(--sub); text-transform:uppercase; letter-spacing:1px; margin-top:4px;}
+  blockquote{
+    margin:0 0 1rem; padding:.9rem 1.1rem; background:var(--accent-soft);
+    border-left:3px solid var(--ink); border-radius:0; font-style:italic; font-size:.95rem;
+  }
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--line);}
+  @media (max-width:560px){.grid2{grid-template-columns:1fr;}}
+  .opt{background:var(--card); padding:1.2rem;}
+  .opt h3{margin:0 0 .5rem; font-size:.85rem; text-transform:uppercase; letter-spacing:1px; font-weight:800;}
+  .opt .uso{color:var(--sub); font-weight:700; font-size:.75rem; margin-bottom:.6rem; text-transform:uppercase; letter-spacing:.5px;}
+  .opt .copy{font-size:.9rem; margin-bottom:.7rem;}
+  .opt .just{font-size:.8rem; color:var(--sub); font-style:italic;}
+  footer{text-align:center; margin-top:0; color:var(--sub); font-size:.85rem; padding:2.5rem 0 1rem;}
+  footer a{color:var(--ink); font-weight:700; text-decoration:underline;}
+  .tool-note{font-size:.8rem; color:var(--sub); margin-top:1rem; text-align:center; letter-spacing:1px; text-transform:uppercase;}
+</style>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CDYYXBD6QV"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-CDYYXBD6QV');
+</script>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="badge">Caso de estudio · CRO</div>
+    <h1>Auditando la landing de Notion con el Modelo LIFT</h1>
+    <p class="byline">Santiago Batista Zelaya — Análisis cognitivo-emocional aplicado a Conversion Rate Optimization</p>
+  </header>
+
+  <section>
+    <h2>Contexto</h2>
+    <p>Elegí la landing de <strong>Notion (notion.so)</strong> como ejercicio práctico: una página madura, de una marca reconocida, con años de iteración de CRO detrás. La pregunta que me interesaba no era "¿está bien o mal?" sino algo más fino: <strong>¿dónde pierde fricción incluso una landing que ya es muy buena?</strong></p>
+    <p>Para esto crucé dos capas de análisis: el <strong>Modelo LIFT</strong> (Propuesta de Valor, Relevancia, Claridad, Ansiedad, Urgencia) como marco de conversión, y una lectura complementaria desde psicología cognitiva (Ekman, Zajonc, Teoría de la Mente). El análisis lo corrí con una herramienta propia, el <a href="https://auditor-cognitivo.vercel.app" style="color:var(--accent)">Auditor Cognitivo</a>, que construí para automatizar justamente este tipo de diagnóstico.</p>
+  </section>
+
+  <section>
+    <h2>Estructura de la landing (Flujo de Atención)</h2>
+    <p class="sub">Captación de atención por sección, en escala de 0 a 10</p>
+    <div class="wire">
+      <div class="wire-block"><div class="score">8</div><div class="name">Hero</div></div>
+      <div class="wire-block"><div class="score">9</div><div class="name">Cuerpo (Casos de Uso)</div></div>
+      <div class="wire-block"><div class="score">7</div><div class="name">CTA Final</div></div>
+    </div>
+    <blockquote>"Where teams and agents Think together" — headline del Hero</blockquote>
+    <p class="sub">El pico de atención está en el cuerpo, no en el hero — señal de que los casos de uso concretos retienen más que la propuesta inicial, que todavía es algo abstracta.</p>
+  </section>
+
+  <section>
+    <h2>Puntuación LIFT</h2>
+    <p class="sub">Puntaje general de inmediatez: <strong>88/100</strong></p>
+    <div class="bar-row"><div class="bar-label"><span>Propuesta de Valor</span><span>9/10</span></div><div class="bar-track"><div class="bar-fill" style="width:90%"></div></div></div>
+    <div class="bar-row"><div class="bar-label"><span>Relevancia</span><span>8/10</span></div><div class="bar-track"><div class="bar-fill" style="width:80%"></div></div></div>
+    <div class="bar-row"><div class="bar-label"><span>Claridad</span><span>7/10</span></div><div class="bar-track"><div class="bar-fill" style="width:70%"></div></div></div>
+    <div class="bar-row"><div class="bar-label"><span>Reducción de Ansiedad</span><span>9/10</span></div><div class="bar-track"><div class="bar-fill" style="width:90%"></div></div></div>
+    <div class="bar-row"><div class="bar-label"><span>Urgencia</span><span>4/10</span></div><div class="bar-track"><div class="bar-fill" style="width:40%"></div></div></div>
+  </section>
+
+  <section>
+    <h2>Diagnóstico de fricción</h2>
+    <div class="bullet"><span class="dot">◆</span><span>Claridad: el concepto de "agents" en el hero asume que el visitante ya distingue IA de agentes autónomos — una abstracción que puede perder a usuarios que todavía piensan en términos de software tradicional.</span></div>
+    <div class="bullet"><span class="dot">◆</span><span>Punto fuerte: la Reducción de Ansiedad es sobresaliente — la prueba social cuantitativa ("100M users", "62% of Fortune 100") neutraliza el escepticismo corporativo de forma casi inmediata.</span></div>
+    <div class="bullet"><span class="dot">◆</span><span>Oportunidad: la Urgencia es el eje más débil (4/10) — nada en el hero empuja a actuar *ahora* frente a seguir evaluando otras herramientas.</span></div>
+  </section>
+
+  <section>
+    <h2>Lectura cognitiva complementaria</h2>
+    <div class="bullet"><span class="dot">◆</span><span><strong>Zajonc/Ekman:</strong> el copy limpio genera fluidez cognitiva agradable; promesas como "Automate busywork" sustituyen la frustración del caos de información diaria por una sensación de alivio.</span></div>
+    <div class="bullet"><span class="dot">◆</span><span><strong>Teoría de la Mente:</strong> la página anticipa bien el estado mental de un decisor cansado del ruido tecnológico — frases como "stay small while doing a lot" sintonizan con miedos presupuestarios implícitos.</span></div>
+  </section>
+
+  <section>
+    <h2>Propuesta de rediseño (Test A/B del Hero)</h2>
+    <div class="grid2">
+      <div class="opt">
+        <h3>Opción A — Claridad funcional</h3>
+        <div class="uso">Si los usuarios no entienden qué hacen los agentes de IA</div>
+        <div class="copy"><strong>"The AI workspace that actually does the work for you."</strong><br>Centraliza docs, wikis y proyectos en un solo lugar donde los agentes de IA automatizan tus tareas 24/7.</div>
+        <div class="just">Reemplaza la abstracción por un beneficio concreto y verificable.</div>
+      </div>
+      <div class="opt">
+        <h3>Opción B — Urgencia + anti-fricción</h3>
+        <div class="uso">Si el freno es el miedo a costos ocultos o integración técnica</div>
+        <div class="copy"><strong>"Scale your team's output. Not your overhead."</strong><br>Únete a 100M de usuarios. Escribe notas, encuentra respuestas y crea agentes sin código.</div>
+        <div class="just">Ataca la ansiedad de costo y suma urgencia competitiva apoyada en la prueba social.</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Hipótesis de medición (GA4)</h2>
+    <p>Si tuviera que priorizar un test real sobre esta landing, mediría:</p>
+    <div class="bullet"><span class="dot">◆</span><span><strong>CTR del CTA primario</strong> ("Get Notion Free") segmentado por variante del hero — métrica directa de si la claridad del mensaje mueve la aguja.</span></div>
+    <div class="bullet"><span class="dot">◆</span><span><strong>Scroll depth hasta el bloque de casos de uso</strong> — si el hero es realmente el punto débil, debería verse una caída de atención antes de llegar al cuerpo, que es donde hoy se concentra el engagement.</span></div>
+    <div class="bullet"><span class="dot">◆</span><span><strong>Bounce rate en el hero</strong> (evento custom "hero_exit" vs scroll) — para confirmar si la fricción de Claridad detectada se traduce en abandono real, no solo en una hipótesis cualitativa.</span></div>
+  </section>
+
+  <footer>
+    <p>Este análisis se generó con <a href="https://auditor-cognitivo.vercel.app">Auditor Cognitivo</a>, una herramienta propia que cruza marcos de CRO (Modelo LIFT) y psicología cognitiva (Ekman, Zajonc, Teoría de la Mente) para auditar copy, mensajes de soporte y landing pages.</p>
+    <p class="tool-note">Santiago Batista Zelaya — Marketing, Operaciones y Psicología (UBA) aplicados a optimización de conversión.</p>
+  </footer>
+
+</div>
+</body>
+</html>

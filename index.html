@@ -453,9 +453,9 @@ urlInput.addEventListener('keydown', (e) => {
 
             return { ok: response.ok, status: response.status, data };
         }
-        async function auditarCopy() {
+   async function auditarCopy() {
             const esLanding = modoActual === 'landing';
-            const texto = (esLanding ? urlInput.value : textarea.value).trim();
+            let texto = (esLanding ? urlInput.value : textarea.value).trim();
             const textoManual = esLanding ? fallbackTextarea.value.trim() : '';
             const escaneoProfundo = document.getElementById('check-profundo').checked;
 
@@ -463,8 +463,15 @@ urlInput.addEventListener('keydown', (e) => {
                 alert(esLanding ? "Pegá una URL para empezar." : "Ingresá el texto primero.");
                 return;
             }
-            if (esLanding && !textoManual && !/^https?:\/\//i.test(texto)) {
-                alert("La URL debe empezar con http:// o https://");
+
+            // Si alguien escribe "notion.so" o "www.sitio.com" sin protocolo, lo completa solo
+            if (esLanding && !textoManual && texto && !/^https?:\/\//i.test(texto)) {
+                texto = 'https://' + texto;
+                urlInput.value = texto;
+            }
+
+            if (esLanding && !textoManual && !/^https?:\/\/[^.\s]+\.[^.\s]+/i.test(texto)) {
+                alert("Ingresá una URL válida (por ejemplo: https://ejemplo.com).");
                 return;
             }
 
@@ -473,12 +480,20 @@ urlInput.addEventListener('keydown', (e) => {
             const btn = document.getElementById('btn-auditar');
             btn.disabled = true;
 
+            const inicioMs = Date.now();
+            let mensajeActual = 'Iniciando...';
+            const actualizarBoton = (nuevoMensaje) => {
+                if (nuevoMensaje) mensajeActual = nuevoMensaje;
+                const seg = Math.floor((Date.now() - inicioMs) / 1000);
+                btn.innerText = `${mensajeActual} (${seg}s)`;
+            };
+            const timerInterval = setInterval(() => actualizarBoton(), 1000);
+
             try {
                 let resultadoFinal;
 
                 if (esLanding && !textoManual) {
-                    // PASO 1: Leer Home y detectar secciones
-                    btn.innerText = '1/3 • Escaneando página principal y detectando secciones...';
+                    actualizarBoton('1/3 • Escaneando página principal y detectando secciones');
                     const homeRes = await llamarApi({
                         accion: 'leer_home',
                         url: texto,
@@ -501,11 +516,10 @@ urlInput.addEventListener('keydown', (e) => {
                         texto: homeRes.data.texto
                     }];
 
-                    // PASO 2: Leer cada subpágina en paralelo (llamadas independientes, sin timeout global)
                     const subpaginas = homeRes.data.subpaginas || [];
                     if (escaneoProfundo && subpaginas.length > 0) {
                         const nombres = subpaginas.map(s => s.nombre).join(', ');
-                        btn.innerText = `2/3 • Leyendo ${subpaginas.length} secciones (${nombres})...`;
+                        actualizarBoton(`2/3 • Leyendo ${subpaginas.length} secciones (${nombres})`);
 
                         const respuestasSub = await Promise.all(
                             subpaginas.map(sub =>
@@ -528,8 +542,7 @@ urlInput.addEventListener('keydown', (e) => {
                         }
                     }
 
-                    // PASO 3: Auditoría cognitiva con Gemini (presupuesto completo de tiempo)
-                    btn.innerText = `3/3 • Auditando ${bloques.length} ${bloques.length === 1 ? 'página' : 'secciones'} con Modelo LIFT...`;
+                    actualizarBoton(`3/3 • Auditando ${bloques.length} ${bloques.length === 1 ? 'página' : 'secciones'} con Modelo LIFT`);
                     const auditRes = await llamarApi({
                         accion: 'auditar',
                         modo: 'landing',
@@ -543,8 +556,7 @@ urlInput.addEventListener('keydown', (e) => {
                     resultadoFinal = auditRes.data;
 
                 } else {
-                    // Ads, Soporte o Landing pegada manualmente (1 solo paso)
-                    btn.innerText = textoManual ? 'Auditando el contenido pegado...' : 'Analizando variables cognitivas...';
+                    actualizarBoton(textoManual ? 'Auditando contenido pegado' : 'Analizando variables cognitivas');
                     const auditRes = await llamarApi({
                         accion: 'auditar',
                         modo: modoActual,
@@ -567,11 +579,11 @@ urlInput.addEventListener('keydown', (e) => {
                 console.error('Error:', error);
                 alert(error.message || "Hubo un error de conexión. Probá nuevamente.");
             } finally {
+                clearInterval(timerInterval);
                 btn.disabled = false;
                 btn.innerText = 'Auditar';
             }
         }
-
         function renderDashboard(data) {
             const dashboard = document.getElementById('dashboard');
             dashboard.style.display = 'flex';

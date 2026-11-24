@@ -254,18 +254,16 @@
         <textarea id="texto-anuncio" placeholder="Pegá aquí el texto de tu anuncio para iniciar el diagnóstico..."></textarea>
         <input type="url" id="url-landing" style="display:none;" placeholder="https://ejemplo.com">
 
-        <label id="deep-scan-box" class="deep-scan-box">
+       <label id="deep-scan-box" class="deep-scan-box">
             <input type="checkbox" id="check-profundo" checked>
-            <span><strong>Auditoría profunda por sección:</strong> detecta hasta 3 secciones clave del sitio, filtra el menú repetido y audita cada apartado de forma individual (puede tardar 20–35 seg).</span>
+            <span><strong>Auditoría profunda por sección:</strong> detecta hasta 3 secciones clave del sitio, filtra el menú repetido y audita cada apartado de forma individual (suele tardar entre 25 y 60 seg según el peso del sitio).</span>
         </label>
 
-        <!-- Respaldo cuando un sitio bloquea bots (ej. Nike / Cloudflare) -->
         <div id="antibot-box" class="antibot-box">
-            <strong>🛡️ Este sitio bloquea lectores automáticos (anti-bot).</strong><br>
-            Para auditarlo igual, abrí la web en tu navegador, tocá <strong>Ctrl+A → Ctrl+C</strong> y pegá el texto acá abajo:
+            <strong>🛡️ No pudimos leer esta URL automáticamente</strong> (el sitio puede tener protección anti-bot o requerir inicio de sesión).<br>
+            Verificá que el link esté bien escrito, o abrí la web, tocá <strong>Ctrl+A → Ctrl+C</strong> y pegá el texto acá abajo para auditarla igual:
             <textarea id="texto-manual-fallback" placeholder="Pegá aquí el contenido copiado de la página..."></textarea>
         </div>
-
         <button onclick="auditarCopy()" id="btn-auditar">Auditar</button>
     </div>
 

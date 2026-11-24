@@ -182,15 +182,16 @@
         }
 
         /* Impresión limpia a PDF sin recortar gráficos */
-        @page { size: auto; margin: 12mm; }
+        @page { size: auto; margin: 10mm; }
         @media print {
             body { background: #ffffff; padding: 0; }
             .main-card, .portfolio-actions, .btn-export, .badge { display: none !important; }
-            .header-container { margin-bottom: 0.8rem; }
-            .dashboard { display: flex !important; width: 100%; max-width: 100%; margin-top: 0; gap: 0.9rem; }
-            .result-card { box-shadow: none; border: 1px solid #ddd; padding: 1.1rem; page-break-inside: avoid; }
-            .grafico-box { height: 270px !important; width: 96% !important; margin: 0 auto; }
-            canvas { max-width: 100% !important; }
+            .header-container { margin-bottom: 0.6rem; }
+            .dashboard { display: flex !important; width: 100%; max-width: 100%; margin-top: 0; gap: 0.75rem; }
+            .result-card { box-shadow: none; border: 1px solid #ddd; padding: 1rem; page-break-inside: avoid; overflow: hidden; }
+            .grafico-box { height: 240px !important; width: 100% !important; margin: 0 auto; }
+            .grafico-box canvas { max-width: 100% !important; max-height: 240px !important; }
+            .footer-text { margin-top: 0.5rem !important; break-before: avoid; page-break-before: avoid; }
         }
     </style>
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-CDYYXBD6QV"></script>

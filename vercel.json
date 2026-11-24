@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/analizar-copy.js": {
+      "maxDuration": 60
+    }
+  }
+}

@@ -39,7 +39,7 @@
         
         .main-card { 
             background: #ffffff; border: 1px solid #eaeaea; border-radius: 12px; 
-            padding: 2rem; width: 100%; max-width: 680px; box-shadow: 0 10px 30px rgba(0,0,0,0.03);
+            padding: 2rem; width: 100%; max-width: 660px; box-shadow: 0 10px 30px rgba(0,0,0,0.03);
             box-sizing: border-box;
         }
         
@@ -49,14 +49,14 @@
             letter-spacing: 1px; margin-bottom: 0.5rem; 
         }
         
-        textarea, input[type="text"], input[type="url"] { 
+        textarea, input[type="url"] { 
             background-color: #f4f3ed; border: 1px solid transparent; border-radius: 8px; 
-            width: 100%; padding: 0.9rem 1rem; font-family: inherit; 
-            font-size: 0.95rem; color: #333; box-sizing: border-box; 
-            transition: border 0.2s; 
+            width: 100%; font-family: inherit; font-size: 0.98rem; color: #333; 
+            box-sizing: border-box; transition: border 0.2s; 
         }
         textarea { height: 150px; resize: vertical; padding: 1.1rem; }
-        textarea:focus, input:focus { outline: none; border: 1px solid #2d5d66; }
+        input[type="url"] { padding: 1rem 1.1rem; }
+        textarea:focus, input[type="url"]:focus { outline: none; border: 1px solid #2d5d66; }
         
         button { 
             background-color: #2d5d66; color: white; border: none; border-radius: 8px; 
@@ -66,17 +66,15 @@
         button:hover { opacity: 0.92; }
         button:disabled { background-color: #8da6aa; cursor: not-allowed; }
 
-        /* Modos */
         .modes-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(3, 1fr);
             gap: 8px;
         }
-        @media (max-width: 600px) { .modes-grid { grid-template-columns: repeat(2, 1fr); } }
 
         .toggle-btn {
             background: #f4f3ed; color: #555; border: 1px solid #d1d1c7;
-            border-radius: 8px; padding: 0.6rem 0.5rem; font-size: 0.82rem;
+            border-radius: 8px; padding: 0.65rem 0.6rem; font-size: 0.85rem;
             font-weight: 600; cursor: pointer; margin-top: 0; width: 100%;
         }
         .toggle-btn.active { background-color: #2d5d66; color: white; border-color: #2d5d66; }
@@ -87,27 +85,27 @@
             margin: 0.85rem 0 1.2rem 0; line-height: 1.45;
         }
 
-        /* Constructor de Etapas (Modo Embudo / Sitio) */
-        .funnel-builder { display: none; flex-direction: column; gap: 10px; }
-        .etapa-row {
-            display: grid;
-            grid-template-columns: 1fr 1.8fr auto;
-            gap: 8px;
-            align-items: center;
+        .deep-scan-box {
+            display: none;
+            align-items: flex-start;
+            gap: 10px;
+            background: #faf9f5;
+            border: 1px solid #e6e4dc;
+            border-radius: 8px;
+            padding: 0.8rem 1rem;
+            margin-top: 0.85rem;
+            cursor: pointer;
+            font-size: 0.86rem;
+            color: #444;
+            line-height: 1.4;
         }
-        @media (max-width: 600px) {
-            .etapa-row { grid-template-columns: 1fr; }
+        .deep-scan-box input {
+            margin-top: 3px;
+            accent-color: #2d5d66;
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
         }
-        .btn-remove-etapa {
-            background: #f4f3ed; color: #777; border: 1px solid #d1d1c7;
-            width: 38px; height: 42px; padding: 0; margin-top: 0; font-size: 1rem;
-        }
-        .btn-remove-etapa:hover { background: #e8dede; color: #b00020; }
-        .btn-add-etapa {
-            background: transparent; color: #2d5d66; border: 1px dashed #2d5d66;
-            padding: 0.65rem; font-size: 0.85rem; margin-top: 4px;
-        }
-        .btn-add-etapa:hover { background: #eef3f2; }
 
         /* Dashboard */
         .dashboard { 
@@ -132,11 +130,30 @@
             font-size: 1.05rem; margin-top: 0; margin-bottom: 1rem; color: #222; 
             border-bottom: 1px solid #f0efe8; padding-bottom: 0.5rem; 
         }
-        
+
+        .scanned-pages {
+            display: none;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 6px;
+            margin-top: 0.8rem;
+        }
+        .page-chip {
+            background: #f4f3ed;
+            border: 1px solid #d9d8ce;
+            color: #444;
+            border-radius: 20px;
+            padding: 4px 11px;
+            font-size: 0.76rem;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .page-chip:hover { border-color: #2d5d66; color: #2d5d66; }
+
         .resumen-banner {
             background: #eef3f2; border-left: 4px solid #2d5d66;
             padding: 1rem 1.2rem; border-radius: 6px; font-size: 0.98rem;
-            line-height: 1.55; color: #1d3b41; margin-top: 1rem; text-align: left;
+            line-height: 1.55; color: #1d3b41; margin-top: 1.2rem; text-align: left;
         }
 
         .diag-box { background: #f4f3ed; padding: 1.1rem; border-radius: 8px; font-size: 0.95rem; line-height: 1.55; color: #333; white-space: pre-line; }
@@ -165,7 +182,6 @@
             text-transform: uppercase; letter-spacing: 1px; margin-top: 3rem; text-align: center; 
         }
 
-        /* Estilos limpios para Exportar Caso de Estudio a PDF */
         @media print {
             body { background: #ffffff; padding: 0; }
             .main-card, .portfolio-actions, .btn-export, .badge { display: none !important; }
@@ -193,33 +209,26 @@
     <div class="main-card">
         <div class="modes-grid">
             <button type="button" id="btn-modo-ads" onclick="setModo('ads')" class="toggle-btn active">📢 Ads</button>
-            <button type="button" id="btn-modo-soporte" onclick="setModo('soporte')" class="toggle-btn">🛟 Soporte</button>
-            <button type="button" id="btn-modo-landing" onclick="setModo('landing')" class="toggle-btn">🔗 Landing</button>
-            <button type="button" id="btn-modo-funnel" onclick="setModo('funnel')" class="toggle-btn">🧭 Sitio / Embudo</button>
+            <button type="button" id="btn-modo-soporte" onclick="setModo('soporte')" class="toggle-btn">💬 Soporte</button>
+            <button type="button" id="btn-modo-landing" onclick="setModo('landing')" class="toggle-btn">🌐 Web / Landing</button>
         </div>
 
         <p id="modo-descripcion" class="modo-descripcion">
             Pegá un anuncio o copy de venta. El Auditor mide si genera deseo y motiva la acción.
         </p>
 
-        <!-- Input estándar (Ads / Soporte / Landing única) -->
-        <div id="single-input-container">
-            <div class="card-header">
-                <span id="input-label">Copy del anuncio</span>
-                <span id="char-counter">0 caracteres</span>
-            </div>
-            <textarea id="texto-anuncio" placeholder="Pegá aquí el texto de tu anuncio para iniciar el diagnóstico..."></textarea>
+        <div class="card-header">
+            <span id="input-label">Copy del anuncio</span>
+            <span id="char-counter">0 caracteres</span>
         </div>
 
-        <!-- Input Multi-URL (Sitio / Embudo completo) -->
-        <div id="funnel-builder" class="funnel-builder">
-            <div class="card-header">
-                <span>Páginas o etapas a auditar (máx. 4)</span>
-                <span id="etapas-count">2 etapas</span>
-            </div>
-            <div id="etapas-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
-            <button type="button" id="btn-add-etapa" class="btn-add-etapa" onclick="agregarEtapa()">+ Sumar otra página (ej. Servicios, Precios, Carrito)</button>
-        </div>
+        <textarea id="texto-anuncio" placeholder="Pegá aquí el texto de tu anuncio para iniciar el diagnóstico..."></textarea>
+        <input type="url" id="url-landing" style="display:none;" placeholder="https://ejemplo.com">
+
+        <label id="deep-scan-box" class="deep-scan-box">
+            <input type="checkbox" id="check-profundo" checked>
+            <span><strong>Escaneo profundo automático:</strong> detecta y lee solo secciones clave del sitio (Servicios, Precios, Nosotros, Producto) para analizar todo sin que pegues links extra.</span>
+        </label>
 
         <button onclick="auditarCopy()" id="btn-auditar">Auditar</button>
     </div>
@@ -234,11 +243,12 @@
         <div class="result-card" style="text-align: center;">
             <h3 style="text-transform: uppercase; letter-spacing: 1px; font-size: 0.85rem; color: #666; border: none; margin-bottom: 0;">Puntuación de Inmediatez Cognitiva</h3>
             <h1 id="puntaje-visual" style="font-size: 3.8rem; color: #2d5d66; margin: 6px 0;">-- / 100</h1>
+            <div id="scanned-pages" class="scanned-pages"></div>
             <div id="resumen-ejecutivo" class="resumen-banner" style="display:none;"></div>
         </div>
 
         <div class="result-card" id="card-continuidad" style="display:none;">
-            <h3>Continuidad Narrativa y Fricción entre Páginas</h3>
+            <h3>Coherencia y Continuidad entre Secciones</h3>
             <div id="continuidad-texto" class="diag-box"></div>
         </div>
 
@@ -310,7 +320,9 @@
 
     <script>
         const textarea = document.getElementById('texto-anuncio');
+        const urlInput = document.getElementById('url-landing');
         const counter = document.getElementById('char-counter');
+
         textarea.addEventListener('input', () => {
             counter.textContent = textarea.value.length + ' caracteres';
         });
@@ -322,81 +334,38 @@
         let ultimaReferencia = "";
         let modoActual = 'ads';
 
-        // Inicializa el constructor multi-URL con 2 filas por defecto
-        function initFunnelRows() {
-            const list = document.getElementById('etapas-list');
-            list.innerHTML = '';
-            agregarEtapa('Home / Landing', '');
-            agregarEtapa('Servicios / Precios / Carrito', '');
-        }
-
-        function agregarEtapa(nombreDefecto = '', urlDefecto = '') {
-            const list = document.getElementById('etapas-list');
-            if (list.children.length >= 4) {
-                alert('Podés auditar hasta 4 páginas en simultáneo.');
-                return;
-            }
-            const row = document.createElement('div');
-            row.className = 'etapa-row';
-            row.innerHTML = `
-                <input type="text" class="etapa-nombre" placeholder="Ej: Home, Nosotros, Precios" value="${escapeHtml(nombreDefecto)}">
-                <input type="url" class="etapa-url" placeholder="https://ejemplo.com/seccion" value="${escapeHtml(urlDefecto)}">
-                <button type="button" class="btn-remove-etapa" onclick="eliminarEtapa(this)" title="Quitar página">✕</button>
-            `;
-            list.appendChild(row);
-            actualizarContadorEtapas();
-        }
-
-        function eliminarEtapa(btn) {
-            const list = document.getElementById('etapas-list');
-            if (list.children.length <= 2) {
-                alert('El modo Sitio / Embudo necesita al menos 2 páginas. Para una sola página, usá el modo Landing.');
-                return;
-            }
-            btn.parentElement.remove();
-            actualizarContadorEtapas();
-        }
-
-        function actualizarContadorEtapas() {
-            const count = document.getElementById('etapas-list').children.length;
-            document.getElementById('etapas-count').textContent = `${count} de 4 etapas`;
-            document.getElementById('btn-add-etapa').style.display = count >= 4 ? 'none' : 'block';
-        }
-
         function setModo(modo) {
             modoActual = modo;
-            ['ads', 'soporte', 'landing', 'funnel'].forEach(m => {
+            ['ads', 'soporte', 'landing'].forEach(m => {
                 document.getElementById(`btn-modo-${m}`).classList.toggle('active', modo === m);
             });
 
             const descripcion = document.getElementById('modo-descripcion');
             const label = document.getElementById('input-label');
-            const singleContainer = document.getElementById('single-input-container');
-            const funnelBuilder = document.getElementById('funnel-builder');
+            const deepScanBox = document.getElementById('deep-scan-box');
 
-            if (modo === 'funnel') {
-                singleContainer.style.display = 'none';
-                funnelBuilder.style.display = 'flex';
-                descripcion.innerText = 'Cargá de 2 a 4 URLs del mismo sitio (ej. Home + Servicios + Precios o Producto + Carrito). El Auditor lee cada página entera y evalúa la consistencia del recorrido completo.';
-                if (document.getElementById('etapas-list').children.length === 0) initFunnelRows();
-                return;
-            }
+            if (modo === 'landing') {
+                textarea.style.display = 'none';
+                urlInput.style.display = 'block';
+                counter.style.display = 'none';
+                deepScanBox.style.display = 'flex';
+                label.innerText = 'URL del sitio o landing';
+                descripcion.innerText = 'Pegá un solo link. El Auditor escanea la página completa y sus secciones internas clave para armar un caso de estudio con Modelo LIFT + hipótesis GA4.';
+            } else {
+                textarea.style.display = 'block';
+                urlInput.style.display = 'none';
+                counter.style.display = 'inline';
+                deepScanBox.style.display = 'none';
 
-            singleContainer.style.display = 'block';
-            funnelBuilder.style.display = 'none';
-
-            if (modo === 'ads') {
-                descripcion.innerText = 'Pegá un anuncio o copy de venta. El Auditor mide si genera deseo y motiva la acción.';
-                label.innerText = 'Copy del anuncio';
-                textarea.placeholder = 'Pegá aquí el texto de tu anuncio para iniciar el diagnóstico...';
-            } else if (modo === 'soporte') {
-                descripcion.innerText = 'Pegá un mensaje de soporte, bot o respuesta a un reclamo. El Auditor mide si baja la ansiedad del cliente en vez de aumentarla.';
-                label.innerText = 'Mensaje de soporte';
-                textarea.placeholder = 'Pegá aquí el mensaje de soporte o atención al cliente...';
-            } else if (modo === 'landing') {
-                descripcion.innerText = 'Pegá la URL completa de una landing page. El Auditor extrae la página entera (incluso sitios dinámicos) y arma un caso de estudio con Modelo LIFT + hipótesis GA4.';
-                label.innerText = 'URL de la landing';
-                textarea.placeholder = 'https://ejemplo.com/landing';
+                if (modo === 'ads') {
+                    descripcion.innerText = 'Pegá un anuncio o copy de venta. El Auditor mide si genera deseo y motiva la acción.';
+                    label.innerText = 'Copy del anuncio';
+                    textarea.placeholder = 'Pegá aquí el texto de tu anuncio para iniciar el diagnóstico...';
+                } else {
+                    descripcion.innerText = 'Pegá un mensaje de soporte, bot o respuesta a un reclamo. El Auditor mide si baja la ansiedad del cliente en vez de aumentarla.';
+                    label.innerText = 'Mensaje de soporte';
+                    textarea.placeholder = 'Pegá aquí el mensaje de soporte o atención al cliente...';
+                }
             }
         }
 
@@ -410,50 +379,36 @@
         }
 
         async function auditarCopy() {
-            let payload = { modo: modoActual };
+            const esLanding = modoActual === 'landing';
+            const texto = (esLanding ? urlInput.value : textarea.value).trim();
+            const escaneoProfundo = document.getElementById('check-profundo').checked;
 
-            if (modoActual === 'funnel') {
-                const rows = Array.from(document.querySelectorAll('.etapa-row'));
-                const etapas = rows.map((row, idx) => ({
-                    nombre: row.querySelector('.etapa-nombre').value.trim() || `Etapa ${idx + 1}`,
-                    url: row.querySelector('.etapa-url').value.trim()
-                })).filter(e => e.url !== '');
-
-                if (etapas.length < 2) {
-                    alert("Completá al menos 2 URLs para auditar el sitio o embudo.");
-                    return;
-                }
-                if (etapas.some(e => !/^https?:\/\//i.test(e.url))) {
-                    alert("Todas las URLs deben empezar con http:// o https://");
-                    return;
-                }
-                payload.etapas = etapas;
-                ultimaReferencia = etapas.map(e => `${e.nombre} (${e.url})`).join(' -> ');
-            } else {
-                const texto = textarea.value.trim();
-                if (!texto) {
-                    alert("Por favor, ingresá el texto o la URL primero.");
-                    return;
-                }
-                if (modoActual === 'landing' && !/^https?:\/\//i.test(texto)) {
-                    alert("La URL debe empezar con http:// o https://");
-                    return;
-                }
-                payload.texto = texto;
-                ultimaReferencia = modoActual === 'landing' ? texto : `Copy (${modoActual.toUpperCase()})`;
+            if (!texto) {
+                alert(esLanding ? "Pegá una URL para empezar." : "Ingresá el texto primero.");
+                return;
             }
+            if (esLanding && !/^https?:\/\//i.test(texto)) {
+                alert("La URL debe empezar con http:// o https://");
+                return;
+            }
+
+            ultimaReferencia = esLanding ? texto : `Copy (${modoActual.toUpperCase()})`;
 
             const btn = document.getElementById('btn-auditar');
             btn.disabled = true;
-            btn.innerText = modoActual === 'funnel'
-                ? 'Leyendo todas las páginas y cruzando variables...'
-                : (modoActual === 'landing' ? 'Extrayendo la página completa y auditando...' : 'Analizando variables cognitivas...');
+            btn.innerText = esLanding
+                ? (escaneoProfundo ? 'Escaneando el sitio y sus secciones clave...' : 'Leyendo la página completa...')
+                : 'Analizando variables cognitivas...';
 
             try {
                 const response = await fetch('/api/analizar-copy', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify({
+                        texto: texto,
+                        modo: modoActual,
+                        escaneoProfundo: escaneoProfundo
+                    })
                 });
 
                 const data = await response.json();
@@ -481,6 +436,16 @@
 
             document.getElementById('puntaje-visual').innerText = data.puntaje ? `${data.puntaje} / 100` : '-- / 100';
 
+            const scannedContainer = document.getElementById('scanned-pages');
+            if (data.paginas_escaneadas && data.paginas_escaneadas.length > 0) {
+                scannedContainer.innerHTML = data.paginas_escaneadas
+                    .map(p => `<a class="page-chip" href="${escapeHtml(p.url)}" target="_blank" rel="noopener">✓ ${escapeHtml(p.nombre)}</a>`)
+                    .join('');
+                scannedContainer.style.display = 'flex';
+            } else {
+                scannedContainer.style.display = 'none';
+            }
+
             const resumenEl = document.getElementById('resumen-ejecutivo');
             if (data.resumen_ejecutivo) {
                 resumenEl.innerText = data.resumen_ejecutivo;
@@ -490,7 +455,7 @@
             }
 
             const cardCont = document.getElementById('card-continuidad');
-            if (data.analisis_continuidad) {
+            if (data.analisis_continuidad && data.analisis_continuidad.trim() !== '') {
                 document.getElementById('continuidad-texto').innerText = data.analisis_continuidad;
                 cardCont.style.display = 'block';
             } else {
@@ -498,12 +463,9 @@
             }
 
             document.getElementById('titulo-diagnostico').innerText =
-                (modoActual === 'landing' || modoActual === 'funnel')
-                    ? 'Diagnóstico de Fricción (Modelo LIFT)'
-                    : 'Diagnóstico Clínico del Copy';
+                modoActual === 'landing' ? 'Diagnóstico de Fricción (Modelo LIFT)' : 'Diagnóstico Clínico del Copy';
 
-            const diagItems = data.diagnostico_general || [];
-            document.getElementById('diagnostico-texto').innerHTML = diagItems
+            document.getElementById('diagnostico-texto').innerHTML = (data.diagnostico_general || [])
                 .map(item => `<div class="bullet-point">🔹 ${escapeHtml(item)}</div>`)
                 .join('');
 
@@ -532,7 +494,6 @@
                 cardGa4.style.display = 'none';
             }
 
-            // Gráficos
             const ctxCartesiano = document.getElementById('graficoCartesiano').getContext('2d');
             if (chartCartesiano) chartCartesiano.destroy();
             chartCartesiano = new Chart(ctxCartesiano, {
@@ -601,18 +562,19 @@
         function copiarCasoPortfolio() {
             if (!ultimoResultado) return;
             const d = ultimoResultado;
+            const paginasTexto = (d.paginas_escaneadas || []).map(p => p.nombre).join(' • ');
             const radarTexto = d.radar.labels.map((l, i) => `- ${l}: ${d.radar.valores[i]}/10`).join('\n');
             const diagTexto = (d.diagnostico_general || []).map(i => `• ${i}`).join('\n');
             const cogTexto = (d.diagnostico_cognitivo || []).map(i => `• ${i}`).join('\n');
             const ga4Texto = (d.hipotesis_medicion_ga4 || []).map(i => `• ${i}`).join('\n');
 
             const textoFinal = `CASO DE ESTUDIO CRO — AUDITORÍA COGNITIVA
-Objetivo auditado: ${ultimaReferencia}
+Objetivo auditado: ${ultimaReferencia}${paginasTexto ? `\nSecciones analizadas automáticamente: ${paginasTexto}` : ''}
 Puntaje de Inmediatez: ${d.puntaje}/100
 
 RESUMEN EJECUTIVO
 ${d.resumen_ejecutivo || ''}
-${d.analisis_continuidad ? `\nCONTINUIDAD DEL RECORRIDO\n${d.analisis_continuidad}\n` : ''}
+${d.analisis_continuidad ? `\nCOHERENCIA ENTRE SECCIONES\n${d.analisis_continuidad}\n` : ''}
 MÉTRICAS DE EVALUACIÓN
 ${radarTexto}
 

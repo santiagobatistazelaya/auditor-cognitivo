@@ -367,10 +367,11 @@
         textarea.addEventListener('input', () => {
             counter.textContent = textarea.value.length + ' caracteres';
         });
-
-        urlInput.addEventListener('input', () => {
-            antibotBox.style.display = 'none';
-            fallbackTextarea.value = '';
+urlInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                auditarCopy();
+            }
         });
 
         let chartCartesiano = null;

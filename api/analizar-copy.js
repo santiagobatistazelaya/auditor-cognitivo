@@ -126,60 +126,85 @@ module.exports = async function handler(req, res) {
     const esMultiseccion = paginasEscaneadas.length > 1;
     const promptMaestro = construirPrompt(modo, contenidoParaAnalizar, paginasEscaneadas, esMultiseccion);
 
-  // 1. Modelos más rápidos y estables primero + thinking en 0 para que respondan en ~4 seg
-    const modelosGratuitos = [
-      "gemini-2.5-flash-lite",
-      "gemini-2.5-flash",
-      "gemini-2.0-flash",
-      "gemini-3.1-flash-lite"
-    ];
+// 1. Consulta qué modelos "flash" están realmente activos hoy en tu API Key (cero 404)
+    let modelosActivos = ["gemini-3.5-flash", "gemini-3.1-flash-lite"];
+    try {
+      const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+      if (listRes.ok) {
+        const listData = await listRes.json();
+        const descubiertos = (listData.models || [])
+          .filter(m =>
+            (m.supportedGenerationMethods || []).includes("generateContent") &&
+            /gemini.*flash/i.test(m.name) &&
+            !/(image|audio|tts|vision|robotics|computer-use|embedding|live)/i.test(m.name)
+          )
+          .map(m => m.name.replace(/^models\//, ""));
+
+        if (descubiertos.length > 0) {
+          const prioridad = (name) => {
+            if (/3\.5-flash$/.test(name)) return 1;
+            if (/3\.1-flash-lite/.test(name)) return 2;
+            if (/flash-lite/.test(name)) return 3;
+            if (/flash$/.test(name)) return 4;
+            return 5;
+          };
+          modelosActivos = descubiertos.sort((a, b) => prioridad(a) - prioridad(b)).slice(0, 3);
+        }
+      }
+    } catch {
+      // Si falla el listado, usa los dos base
+    }
 
     let jsonResponse = null;
     const resumenErrores = [];
+    let hubo503 = false;
 
-    for (const modelo of modelosGratuitos) {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 25000);
-
-      const genConfig = {
-        response_mime_type: "application/json",
-        temperature: 0.2,
-        maxOutputTokens: 6000
-      };
-      if (modelo.startsWith("gemini-2.5")) {
-        genConfig.thinkingConfig = { thinkingBudget: 0 };
+    for (let ronda = 1; ronda <= 2 && !jsonResponse; ronda++) {
+      if (ronda === 2) {
+        if (!hubo503) break;
+        await new Promise(resolve => setTimeout(resolve, 2500));
       }
 
-      try {
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: promptMaestro }] }],
-              generationConfig: genConfig
-            }),
-            signal: controller.signal
+      for (const modelo of modelosActivos) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 18000);
+
+        try {
+          const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: promptMaestro }] }],
+                generationConfig: {
+                  response_mime_type: "application/json",
+                  temperature: 0.2,
+                  maxOutputTokens: 6000
+                }
+              }),
+              signal: controller.signal
+            }
+          );
+
+          const data = await response.json();
+
+          if (response.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
+            jsonResponse = JSON.parse(data.candidates[0].content.parts[0].text);
+            break;
+          } else {
+            if (response.status === 503 || response.status === 429) hubo503 = true;
+            resumenErrores.push(`${modelo}: ${response.status}`);
           }
-        );
-
-        const data = await response.json();
-
-        if (response.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
-          jsonResponse = JSON.parse(data.candidates[0].content.parts[0].text);
-          break;
-        } else {
-          resumenErrores.push(`${modelo}: ${response.status}`);
+        } catch (fetchError) {
+          resumenErrores.push(`${modelo}: ${fetchError.name === 'AbortError' ? 'timeout' : 'error'}`);
+        } finally {
+          clearTimeout(timeoutId);
         }
-      } catch (fetchError) {
-        resumenErrores.push(`${modelo}: ${fetchError.name === 'AbortError' ? 'timeout' : 'error'}`);
-      } finally {
-        clearTimeout(timeoutId);
       }
     }
 
-    // 2. Respaldo automático con Groq (gratis y responde en 2 seg si Gemini está caído)
+    // 2. Respaldo automático con Groq (si agregás GROQ_API_KEY en Vercel)
     if (!jsonResponse && process.env.GROQ_API_KEY) {
       try {
         const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {

@@ -428,7 +428,7 @@
                 .replace(/"/g, '&quot;');
         }
 
-       async function llamarApi(payload) {
+    async function llamarApi(payload, reintentos = 1) {
             const response = await fetch('/api/analizar-copy', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -440,12 +440,20 @@
             try {
                 data = JSON.parse(rawText);
             } catch {
+                if (reintentos > 0) {
+                    await new Promise(r => setTimeout(r, 2000));
+                    return llamarApi(payload, reintentos - 1);
+                }
                 throw new Error(`El servidor respondió con error ${response.status}. Probá nuevamente.`);
+            }
+
+            if (response.status === 503 && reintentos > 0) {
+                await new Promise(r => setTimeout(r, 2500));
+                return llamarApi(payload, reintentos - 1);
             }
 
             return { ok: response.ok, status: response.status, data };
         }
-
         async function auditarCopy() {
             const esLanding = modoActual === 'landing';
             const texto = (esLanding ? urlInput.value : textarea.value).trim();

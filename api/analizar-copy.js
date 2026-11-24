@@ -126,72 +126,94 @@ module.exports = async function handler(req, res) {
     const esMultiseccion = paginasEscaneadas.length > 1;
     const promptMaestro = construirPrompt(modo, contenidoParaAnalizar, paginasEscaneadas, esMultiseccion);
 
-   const modelosGratuitos = [
-      "gemini-3.5-flash",
-      "gemini-3.1-flash-lite",
+  // 1. Modelos más rápidos y estables primero + thinking en 0 para que respondan en ~4 seg
+    const modelosGratuitos = [
       "gemini-2.5-flash-lite",
-      "gemini-2.5-flash"
+      "gemini-2.5-flash",
+      "gemini-2.0-flash",
+      "gemini-3.1-flash-lite"
     ];
 
     let jsonResponse = null;
-    const erroresPorModelo = [];
-    let huboAltaDemanda = false;
+    const resumenErrores = [];
 
-    // Hasta 2 rondas: si la 1ra falla por pico de demanda (503/429), espera 2 seg y reintenta
-    for (let ronda = 1; ronda <= 2 && !jsonResponse; ronda++) {
-      if (ronda === 2) {
-        if (!huboAltaDemanda) break;
-        await new Promise(resolve => setTimeout(resolve, 2000));
+    for (const modelo of modelosGratuitos) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 25000);
+
+      const genConfig = {
+        response_mime_type: "application/json",
+        temperature: 0.2,
+        maxOutputTokens: 6000
+      };
+      if (modelo.startsWith("gemini-2.5")) {
+        genConfig.thinkingConfig = { thinkingBudget: 0 };
       }
 
-      for (const modelo of modelosGratuitos) {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 20000);
-
-        try {
-          const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                contents: [{ parts: [{ text: promptMaestro }] }],
-                generationConfig: {
-                  response_mime_type: "application/json",
-                  temperature: 0.2,
-                  maxOutputTokens: 7000
-                }
-              }),
-              signal: controller.signal
-            }
-          );
-
-          const data = await response.json();
-
-          if (response.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
-            // Valida el JSON acá mismo: si un modelo lo cortó, salta al siguiente
-            jsonResponse = JSON.parse(data.candidates[0].content.parts[0].text);
-            break;
-          } else {
-            if (response.status === 503 || response.status === 429) huboAltaDemanda = true;
-            erroresPorModelo.push({ ronda, modelo, status: response.status, msg: data?.error?.message || 'Error API' });
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: promptMaestro }] }],
+              generationConfig: genConfig
+            }),
+            signal: controller.signal
           }
-        } catch (fetchError) {
-          erroresPorModelo.push({ ronda, modelo, msg: fetchError.message });
-        } finally {
-          clearTimeout(timeoutId);
+        );
+
+        const data = await response.json();
+
+        if (response.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
+          jsonResponse = JSON.parse(data.candidates[0].content.parts[0].text);
+          break;
+        } else {
+          resumenErrores.push(`${modelo}: ${response.status}`);
         }
+      } catch (fetchError) {
+        resumenErrores.push(`${modelo}: ${fetchError.name === 'AbortError' ? 'timeout' : 'error'}`);
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    }
+
+    // 2. Respaldo automático con Groq (gratis y responde en 2 seg si Gemini está caído)
+    if (!jsonResponse && process.env.GROQ_API_KEY) {
+      try {
+        const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.GROQ_API_KEY}`
+          },
+          body: JSON.stringify({
+            model: 'llama-3.3-70b-versatile',
+            temperature: 0.2,
+            response_format: { type: 'json_object' },
+            messages: [
+              { role: 'system', content: 'Devuelve exclusivamente un objeto JSON válido siguiendo exactamente la estructura pedida.' },
+              { role: 'user', content: promptMaestro.substring(0, 18000) }
+            ]
+          })
+        });
+
+        const groqData = await groqRes.json();
+        if (groqRes.ok && groqData.choices?.[0]?.message?.content) {
+          jsonResponse = JSON.parse(groqData.choices[0].message.content);
+        } else {
+          resumenErrores.push(`groq: ${groqRes.status}`);
+        }
+      } catch {
+        resumenErrores.push('groq: error');
       }
     }
 
     if (!jsonResponse) {
-      console.error('Fallaron todos los modelos:', JSON.stringify(erroresPorModelo));
-      if (huboAltaDemanda) {
-        return res.status(503).json({
-          error: 'Los servidores gratuitos de Gemini están con alta demanda en este momento (error 503). Esperá 10 segundos y tocá Auditar de nuevo.'
-        });
-      }
-      throw new Error(JSON.stringify(erroresPorModelo));
+      return res.status(503).json({
+        error: `No respondió ningún modelo (${resumenErrores.join(' | ')}).`
+      });
     }
 
     if (modo === "landing") {

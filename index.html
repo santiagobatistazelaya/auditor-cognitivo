@@ -186,12 +186,37 @@
         @media print {
             body { background: #ffffff; padding: 0; }
             .main-card, .portfolio-actions, .btn-export, .badge { display: none !important; }
-            .header-container { margin-bottom: 0.6rem; }
-            .dashboard { display: flex !important; width: 100%; max-width: 100%; margin-top: 0; gap: 0.75rem; }
-            .result-card { box-shadow: none; border: 1px solid #ddd; padding: 1rem; page-break-inside: avoid; overflow: hidden; }
-            .grafico-box { height: 240px !important; width: 100% !important; margin: 0 auto; }
-            .grafico-box canvas { max-width: 100% !important; max-height: 240px !important; }
-            .footer-text { margin-top: 0.5rem !important; break-before: avoid; page-break-before: avoid; }
+            .header-container { margin-bottom: 0.5rem; }
+            .header-container h1 { font-size: 1.7rem; margin-bottom: 0.25rem; }
+            .header-container p.subtitle { font-size: 0.9rem; }
+            .dashboard { display: block !important; width: 100%; max-width: 100%; margin-top: 0; }
+            .result-card {
+                box-shadow: none;
+                border: 1px solid #ddd;
+                padding: 0.9rem 1rem;
+                margin-bottom: 0.75rem;
+                break-inside: avoid;
+                page-break-inside: avoid;
+                overflow: hidden;
+            }
+            #puntaje-visual { font-size: 2.8rem !important; margin: 2px 0 !important; }
+            #card-por-seccion {
+                break-inside: auto !important;
+                page-break-inside: auto !important;
+                overflow: visible !important;
+            }
+            #card-por-seccion h3 { break-after: avoid; page-break-after: avoid; }
+            .secciones-grid { display: block !important; }
+            .seccion-item {
+                margin-bottom: 0.65rem;
+                padding: 0.85rem 1rem;
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+            .seccion-item:last-child { margin-bottom: 0; }
+            .grafico-box { height: 220px !important; width: 100% !important; margin: 0 auto; }
+            .grafico-box canvas { max-width: 100% !important; max-height: 220px !important; }
+            .footer-text { margin-top: 0.4rem !important; break-before: avoid; page-break-before: avoid; }
         }
     </style>
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-CDYYXBD6QV"></script>

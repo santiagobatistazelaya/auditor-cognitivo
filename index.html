@@ -402,6 +402,24 @@
                 .replace(/"/g, '&quot;');
         }
 
+       async function llamarApi(payload) {
+            const response = await fetch('/api/analizar-copy', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const rawText = await response.text();
+            let data = {};
+            try {
+                data = JSON.parse(rawText);
+            } catch {
+                throw new Error(`El servidor respondió con error ${response.status}. Probá nuevamente.`);
+            }
+
+            return { ok: response.ok, status: response.status, data };
+        }
+
         async function auditarCopy() {
             const esLanding = modoActual === 'landing';
             const texto = (esLanding ? urlInput.value : textarea.value).trim();
@@ -421,41 +439,100 @@
 
             const btn = document.getElementById('btn-auditar');
             btn.disabled = true;
-            btn.innerText = esLanding
-                ? (textoManual ? 'Auditando el contenido pegado...' : (escaneoProfundo ? 'Escaneando y auditando cada sección en profundidad...' : 'Leyendo la página completa...'))
-                : 'Analizando variables cognitivas...';
 
             try {
-                const response = await fetch('/api/analizar-copy', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        texto: texto,
-                        textoManual: textoManual,
-                        modo: modoActual,
+                let resultadoFinal;
+
+                if (esLanding && !textoManual) {
+                    // PASO 1: Leer Home y detectar secciones
+                    btn.innerText = '1/3 • Escaneando página principal y detectando secciones...';
+                    const homeRes = await llamarApi({
+                        accion: 'leer_home',
+                        url: texto,
                         escaneoProfundo: escaneoProfundo
-                    })
-                });
+                    });
 
-                const data = await response.json();
-
-                if (!response.ok) {
-                    if (data.bloqueadoPorAntiBot) {
-                        antibotBox.style.display = 'block';
-                        fallbackTextarea.focus();
+                    if (!homeRes.ok) {
+                        if (homeRes.data?.bloqueadoPorAntiBot) {
+                            antibotBox.style.display = 'block';
+                            fallbackTextarea.focus();
+                            return;
+                        }
+                        alert(homeRes.data?.error || "No pudimos leer esa URL.");
                         return;
                     }
-                    alert(data.error || "Hubo un error al auditar.");
-                    return;
+
+                    const bloques = [{
+                        nombre: homeRes.data.nombre,
+                        url: homeRes.data.url,
+                        texto: homeRes.data.texto
+                    }];
+
+                    // PASO 2: Leer cada subpágina en paralelo (llamadas independientes, sin timeout global)
+                    const subpaginas = homeRes.data.subpaginas || [];
+                    if (escaneoProfundo && subpaginas.length > 0) {
+                        const nombres = subpaginas.map(s => s.nombre).join(', ');
+                        btn.innerText = `2/3 • Leyendo ${subpaginas.length} secciones (${nombres})...`;
+
+                        const respuestasSub = await Promise.all(
+                            subpaginas.map(sub =>
+                                llamarApi({
+                                    accion: 'leer_subpagina',
+                                    url: sub.url,
+                                    nombre: sub.nombre
+                                }).catch(() => null)
+                            )
+                        );
+
+                        for (const r of respuestasSub) {
+                            if (r && r.ok && r.data && !r.data.omitida && r.data.texto) {
+                                bloques.push({
+                                    nombre: r.data.nombre,
+                                    url: r.data.url,
+                                    texto: r.data.texto
+                                });
+                            }
+                        }
+                    }
+
+                    // PASO 3: Auditoría cognitiva con Gemini (presupuesto completo de tiempo)
+                    btn.innerText = `3/3 • Auditando ${bloques.length} ${bloques.length === 1 ? 'página' : 'secciones'} con Modelo LIFT...`;
+                    const auditRes = await llamarApi({
+                        accion: 'auditar',
+                        modo: 'landing',
+                        bloques: bloques
+                    });
+
+                    if (!auditRes.ok) {
+                        alert(auditRes.data?.error || "Hubo un error al generar el diagnóstico.");
+                        return;
+                    }
+                    resultadoFinal = auditRes.data;
+
+                } else {
+                    // Ads, Soporte o Landing pegada manualmente (1 solo paso)
+                    btn.innerText = textoManual ? 'Auditando el contenido pegado...' : 'Analizando variables cognitivas...';
+                    const auditRes = await llamarApi({
+                        accion: 'auditar',
+                        modo: modoActual,
+                        texto: texto,
+                        textoManual: textoManual
+                    });
+
+                    if (!auditRes.ok) {
+                        alert(auditRes.data?.error || "Hubo un error al auditar.");
+                        return;
+                    }
+                    resultadoFinal = auditRes.data;
                 }
 
                 antibotBox.style.display = 'none';
-                ultimoResultado = data;
-                renderDashboard(data);
+                ultimoResultado = resultadoFinal;
+                renderDashboard(resultadoFinal);
 
             } catch (error) {
                 console.error('Error:', error);
-                alert("Hubo un error de conexión o tiempo de espera agotado. Probá nuevamente.");
+                alert(error.message || "Hubo un error de conexión. Probá nuevamente.");
             } finally {
                 btn.disabled = false;
                 btn.innerText = 'Auditar';

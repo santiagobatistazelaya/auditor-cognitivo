@@ -17,60 +17,87 @@ module.exports = async function handler(req, res) {
 
     const modo = body?.modo || "ads";
     const texto = (body?.texto || "").trim();
-    const escaneoProfundo = body?.escaneoProfundo !== false; // true por defecto
+    const textoManualFallback = (body?.textoManual || "").trim();
+    const escaneoProfundo = body?.escaneoProfundo !== false;
 
-    if (!texto) return res.status(400).json({ error: 'El texto o la URL es requerido' });
+    if (!texto && !textoManualFallback) {
+      return res.status(400).json({ error: 'El texto o la URL es requerido' });
+    }
 
     let contenidoParaAnalizar = texto;
     let paginasEscaneadas = [];
 
-    // 1. Modo Web / Landing: lee la URL principal y, si está activo, rastrea subpáginas clave automáticamente
+    // 1. Modo Web / Landing
     if (modo === "landing") {
-      if (!/^https?:\/\//i.test(texto)) {
-        return res.status(400).json({ error: 'La URL debe empezar con http:// o https://' });
-      }
+      // Si el usuario usó el respaldo manual (para sitios con anti-bot como Nike)
+      if (textoManualFallback.length >= 50) {
+        paginasEscaneadas.push({ nombre: 'Contenido Pegado (Manual)', url: texto || '#' });
+        contenidoParaAnalizar = `=== PÁGINA PRINCIPAL (${texto || 'URL con anti-bot'}) ===\n${limpiarMegaMenu(textoManualFallback).substring(0, 16000)}`;
+      } else {
+        if (!/^https?:\/\//i.test(texto)) {
+          return res.status(400).json({ error: 'La URL debe empezar con http:// o https://' });
+        }
 
-      const homeData = await extraerContenidoWeb(texto, 12000);
-      if (!homeData.texto || homeData.texto.length < 50) {
-        return res.status(400).json({ error: 'No pudimos extraer suficiente texto de esa página. Verificá que sea pública.' });
-      }
+        // Extraemos la página principal completa (sin recortar antes de limpiar)
+        const homeData = await extraerContenidoWeb(texto, 18000);
 
-      paginasEscaneadas.push({ nombre: 'Página Principal', url: texto });
+        if (!homeData.textoCrudo || homeData.textoCrudo.length < 80 || pareceBloqueoAntiBot(homeData.textoCrudo)) {
+          return res.status(422).json({
+            bloqueadoPorAntiBot: true,
+            error: 'Este sitio bloquea el acceso automatizado (protección anti-bot como Cloudflare o Akamai). Podés abrir la web, tocar Ctrl+A → Ctrl+C y pegar el texto abajo para auditarla igual.'
+          });
+        }
 
-      let bloques = [`=== PÁGINA PRINCIPAL (${texto}) ===\n${homeData.texto}`];
+        // Guardamos líneas repetitivas de la Home para eliminarlas de las subpáginas
+        const lineasHomeSet = crearIndiceDeLineas(homeData.textoCrudo);
+        const homeLimpia = limpiarMegaMenu(homeData.textoCrudo).substring(0, 11000);
 
-      // Auto-descubrimiento de secciones clave (Servicios, Precios, Nosotros, Producto, etc.)
-      if (escaneoProfundo) {
-        const subpaginasClave = descubrirSubpaginasClave(homeData.crudo, texto, homeData.esHtml, 3);
+        paginasEscaneadas.push({ nombre: 'Página Principal', url: texto });
+        let bloques = [`=== SECCIÓN 1: PÁGINA PRINCIPAL (${texto}) ===\n${homeLimpia}`];
 
-        if (subpaginasClave.length > 0) {
-          const resultadosSub = await Promise.all(
-            subpaginasClave.map(async (sub) => {
-              const subData = await extraerContenidoWeb(sub.url, 5000, 8000);
-              if (subData.texto && subData.texto.length > 80) {
-                return { nombre: sub.nombre, url: sub.url, texto: subData.texto };
+        // Descubrimiento automático de hasta 3 secciones clave
+        if (escaneoProfundo) {
+          const subpaginasClave = descubrirSubpaginasClave(homeData.crudoOriginal, texto, homeData.esHtml, 3);
+
+          if (subpaginasClave.length > 0) {
+            const resultadosSub = await Promise.all(
+              subpaginasClave.map(async (sub) => {
+                const subData = await extraerContenidoWeb(sub.url, 14000);
+                if (!subData.textoCrudo || subData.textoCrudo.length < 100 || pareceBloqueoAntiBot(subData.textoCrudo)) {
+                  return null;
+                }
+                // Eliminamos menú, header y footer idénticos a la Home para quedarnos SOLO con lo único de esta sección
+                const soloContenidoUnico = deduplicarContraHome(limpiarMegaMenu(subData.textoCrudo), lineasHomeSet);
+                if (soloContenidoUnico.length < 120) return null;
+
+                return {
+                  nombre: sub.nombre,
+                  url: sub.url,
+                  texto: soloContenidoUnico.substring(0, 6500)
+                };
+              })
+            );
+
+            let idxSec = 2;
+            for (const item of resultadosSub) {
+              if (item) {
+                paginasEscaneadas.push({ nombre: item.nombre, url: item.url });
+                bloques.push(`=== SECCIÓN ${idxSec}: ${item.nombre.toUpperCase()} (${item.url}) ===\n[Contenido único de esta sección, sin menú ni footer repetido]\n${item.texto}`);
+                idxSec++;
               }
-              return null;
-            })
-          );
-
-          for (const item of resultadosSub) {
-            if (item) {
-              paginasEscaneadas.push({ nombre: item.nombre, url: item.url });
-              bloques.push(`=== SECCIÓN DETECTADA: ${item.nombre.toUpperCase()} (${item.url}) ===\n${item.texto}`);
             }
           }
         }
-      }
 
-      contenidoParaAnalizar = bloques.join("\n\n----------------------------------------\n\n");
+        contenidoParaAnalizar = bloques.join("\n\n========================================\n\n");
+      }
     }
 
-    // 2. Prompt maestro adaptado a la profundidad detectada
+    // 2. Prompt maestro exigiendo análisis individual por sección
     const esMultiseccion = paginasEscaneadas.length > 1;
     const promptMaestro = construirPrompt(modo, contenidoParaAnalizar, paginasEscaneadas, esMultiseccion);
 
-    // 3. Llamada a Gemini con JSON nativo garantizado
+    // 3. Llamada a Gemini con JSON nativo + 8192 tokens de salida para profundidad real
     const modelosGratuitos = [
       "gemini-3.5-flash",
       "gemini-3.1-flash-lite",
@@ -92,7 +119,8 @@ module.exports = async function handler(req, res) {
               contents: [{ parts: [{ text: promptMaestro }] }],
               generationConfig: {
                 response_mime_type: "application/json",
-                temperature: 0.2
+                temperature: 0.2,
+                maxOutputTokens: 8192
               }
             })
           }
@@ -117,7 +145,6 @@ module.exports = async function handler(req, res) {
 
     const jsonResponse = JSON.parse(responseText);
 
-    // Adjuntamos metadata real de qué páginas leyó el crawler
     if (modo === "landing") {
       jsonResponse.paginas_escaneadas = paginasEscaneadas;
     }
@@ -130,8 +157,8 @@ module.exports = async function handler(req, res) {
   }
 };
 
-// Extrae contenido vía Jina Reader (renderiza JS y devuelve Markdown) con fallback a HTML nativo
-async function extraerContenidoWeb(targetUrl, maxChars = 12000, timeoutMs = 11000) {
+// Extrae contenido sin truncarlo prematuramente para poder limpiar mega-menús primero
+async function extraerContenidoWeb(targetUrl, timeoutMs = 15000) {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -140,7 +167,8 @@ async function extraerContenidoWeb(targetUrl, maxChars = 12000, timeoutMs = 1100
       headers: {
         'Accept': 'text/plain',
         'X-Return-Format': 'markdown',
-        'User-Agent': 'AuditorCognitivo/2.1'
+        'X-Timeout': '14',
+        'User-Agent': 'AuditorCognitivo/2.2'
       },
       signal: controller.signal
     });
@@ -149,9 +177,10 @@ async function extraerContenidoWeb(targetUrl, maxChars = 12000, timeoutMs = 1100
     if (jinaRes.ok) {
       const markdown = await jinaRes.text();
       if (markdown && markdown.trim().length > 100) {
+        const acotado = markdown.substring(0, 120000);
         return {
-          texto: limpiarMarkdown(markdown).substring(0, maxChars),
-          crudo: markdown,
+          textoCrudo: limpiarBasuraMarkdown(acotado),
+          crudoOriginal: acotado,
           esHtml: false
         };
       }
@@ -163,26 +192,117 @@ async function extraerContenidoWeb(targetUrl, maxChars = 12000, timeoutMs = 1100
   // Fallback nativo
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 7000);
+    const timeoutId = setTimeout(() => controller.abort(), 9000);
     const pageResponse = await fetch(targetUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+        'Accept-Language': 'es-UY,es;q=0.9,en;q=0.8'
+      },
       signal: controller.signal
     });
     clearTimeout(timeoutId);
 
-    if (!pageResponse.ok) return { texto: "", crudo: "", esHtml: true };
+    if (!pageResponse.ok) return { textoCrudo: "", crudoOriginal: "", esHtml: true };
     const html = await pageResponse.text();
+    const acotadoHtml = html.substring(0, 150000);
     return {
-      texto: extraerTextoVisible(html, maxChars),
-      crudo: html,
+      textoCrudo: extraerTextoVisible(acotadoHtml),
+      crudoOriginal: acotadoHtml,
       esHtml: true
     };
-  } catch (fallbackErr) {
-    return { texto: "", crudo: "", esHtml: true };
+  } catch {
+    return { textoCrudo: "", crudoOriginal: "", esHtml: true };
   }
 }
 
-// Descubre automáticamente los links internos más valiosos para CRO (Precios, Servicios, Nosotros, Producto)
+function pareceBloqueoAntiBot(texto) {
+  const muestra = texto.substring(0, 1500).toLowerCase();
+  const señales = [
+    'access denied',
+    'you don\'t have permission to access',
+    'enable javascript and cookies to continue',
+    'checking your browser before accessing',
+    'attention required! | cloudflare',
+    'just a moment...',
+    'pardon our interruption',
+    'incident id:'
+  ];
+  return texto.length < 1800 && señales.some(s => muestra.includes(s));
+}
+
+function limpiarBasuraMarkdown(md) {
+  return md
+    .replace(/!\[.*?\]\(data:image\/.*?\)/g, '')
+    .replace(/!\[.*?\]\(.*?\)/g, '')
+    .replace(/\r/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+// Detecta y colapsa bloques masivos de enlaces de mega-menús para que no consuman los tokens del contenido real
+function limpiarMegaMenu(texto) {
+  const lineas = texto.split('\n');
+  const resultado = [];
+  let rachaLinks = [];
+
+  const esLineaSoloLink = (l) => {
+    const t = l.trim();
+    if (!t) return false;
+    // Detecta ítems tipo "* [Zapatillas](url)" o "[0-5KM](url)"
+    return /^[-*•]?\s*\[[^\]]{1,70}\]\([^)]+\)\s*$/.test(t);
+  };
+
+  const vaciarRacha = () => {
+    if (rachaLinks.length > 6) {
+      // Mantenemos una muestra mínima para que el Auditor note que existe un menú grande, sin ahogar el contexto
+      resultado.push(...rachaLinks.slice(0, 3));
+      resultado.push(`[... ${rachaLinks.length - 3} enlaces de menú/navegación condensados ...]`);
+    } else {
+      resultado.push(...rachaLinks);
+    }
+    rachaLinks = [];
+  };
+
+  for (const linea of lineas) {
+    if (esLineaSoloLink(linea)) {
+      rachaLinks.push(linea);
+    } else {
+      if (rachaLinks.length > 0) vaciarRacha();
+      resultado.push(linea);
+    }
+  }
+  if (rachaLinks.length > 0) vaciarRacha();
+
+  // También quita las URLs largas dentro de links de texto para ahorrar tokens: [Texto](https://...) -> Texto
+  return resultado
+    .join('\n')
+    .replace(/\[([^\]]{2,100})\]\(https?:\/\/[^)]+\)/g, '$1')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function crearIndiceDeLineas(texto) {
+  const set = new Set();
+  for (const linea of texto.split('\n')) {
+    const norm = linea.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').trim().toLowerCase();
+    if (norm.length >= 12) set.add(norm);
+  }
+  return set;
+}
+
+// Elimina de una subpágina cualquier línea que ya apareció idéntica en la Home (header, mega-menú, cookies, footer)
+function deduplicarContraHome(textoSubpagina, lineasHomeSet) {
+  const filtradas = textoSubpagina.split('\n').filter((linea) => {
+    const norm = linea.trim().toLowerCase();
+    if (!norm) return true;
+    if (norm.length >= 12 && lineasHomeSet.has(norm)) return false;
+    return true;
+  });
+
+  return filtradas.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+// Descubre subpáginas clave evitando links genéricos como "ver todo" si hay secciones más ricas
 function descubrirSubpaginasClave(contenidoCrudo, baseUrlStr, esHtml, maxPaginas = 3) {
   let baseUrl;
   try {
@@ -199,11 +319,12 @@ function descubrirSubpaginasClave(contenidoCrudo, baseUrlStr, esHtml, maxPaginas
     ? /<a[^>]+href=["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi
     : /\[([^\]]{2,60})\]\(([^)\s]+)\)/g;
 
-  const excluir = /\/(login|log-in|signin|sign-in|signup|sign-up|register|auth|account|privacy|privacidad|terms|terminos|legal|cookies?|policy|politica|careers|jobs|empleo|press|prensa|status|api|cdn-cgi|wp-content|wp-admin|feed|rss|sitemap|search|buscar)\b/i;
+  const excluir = /\/(login|log-in|signin|sign-in|signup|sign-up|register|auth|account|mi-cuenta|privacy|privacidad|terms|terminos|legal|cookies?|policy|politica|careers|jobs|empleo|press|prensa|status|api|cdn-cgi|wp-content|wp-admin|feed|rss|sitemap|search|buscar|wishlist|favoritos)\b/i;
+  const textosGenericosBajaPrioridad = /^(ver todo|view all|see all|ver más|leer más|home|inicio|volver)$/i;
   const extensionesIgnorar = /\.(png|jpg|jpeg|gif|svg|webp|pdf|zip|mp4|mp3|css|js|xml|ico|json)$/i;
 
-  const prioridadAlta = /(pricing|precios|planes|plans|servicios|services|product|producto|productos|solutions|soluciones|features|caracteristicas|funcionalidades|shop|store|tienda|catalogo|packs|paquetes)/i;
-  const prioridadMedia = /(about|nosotros|quienes-somos|empresa|company|filosofia|mision|vision|how-it-works|como-funciona|casos|cases|clientes|customers|demo|contacto|contact|equipo|team|why|por-que)/i;
+  const prioridadAlta = /(pricing|precios|planes|plans|servicios|services|product|producto|productos|solutions|soluciones|features|caracteristicas|funcionalidades|shop|store|tienda|catalogo|packs|paquetes|calzado|zapatillas|running|mujer|hombre|ofertas|sale|descuentos)/i;
+  const prioridadMedia = /(about|nosotros|quienes-somos|empresa|company|filosofia|mision|vision|how-it-works|como-funciona|casos|cases|clientes|customers|demo|contacto|contact|equipo|team|why|por-que|ayuda|envios|devoluciones)/i;
 
   let match;
   while ((match = regex.exec(contenidoCrudo)) !== null) {
@@ -226,7 +347,6 @@ function descubrirSubpaginasClave(contenidoCrudo, baseUrlStr, esHtml, maxPaginas
     if (cleanPath === basePathNormalizado) continue;
     if (excluir.test(cleanPath) || extensionesIgnorar.test(cleanPath)) continue;
 
-    // Evita artículos profundos de blog o URLs con demasiados niveles
     const segmentos = cleanPath.split('/').filter(Boolean);
     if (segmentos.length === 0 || segmentos.length > 2) continue;
 
@@ -235,11 +355,11 @@ function descubrirSubpaginasClave(contenidoCrudo, baseUrlStr, esHtml, maxPaginas
 
     if (prioridadAlta.test(cleanPath) || prioridadAlta.test(rawTexto)) puntaje += 10;
     else if (prioridadMedia.test(cleanPath) || prioridadMedia.test(rawTexto)) puntaje += 6;
-    else puntaje += 1;
+    else puntaje += 2;
 
     if (segmentos.length === 1) puntaje += 3;
+    if (textosGenericosBajaPrioridad.test(rawTexto)) puntaje -= 5;
 
-    // Nombre legible para mostrar en el dashboard
     const nombreLimpio = (rawTexto && rawTexto.length >= 3 && rawTexto.length <= 32 && !/^http/i.test(rawTexto))
       ? rawTexto
       : segmentos[segmentos.length - 1].replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
@@ -250,48 +370,48 @@ function descubrirSubpaginasClave(contenidoCrudo, baseUrlStr, esHtml, maxPaginas
   }
 
   return Array.from(candidatos.values())
-    .filter(c => c.puntaje >= 4) // Solo subpáginas relevantes
+    .filter(c => c.puntaje >= 5)
     .sort((a, b) => b.puntaje - a.puntaje)
     .slice(0, maxPaginas);
 }
 
-function limpiarMarkdown(md) {
-  return md
-    .replace(/!\[.*?\]\(data:image\/.*?\)/g, '')
-    .replace(/!\[.*?\]\(.*?\)/g, '')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
-
-function extraerTextoVisible(html, maxChars) {
-  let limpio = html.replace(/<script[\s\S]*?<\/script>/gi, ' ');
-  limpio = limpio.replace(/<style[\s\S]*?<\/style>/gi, ' ');
-  limpio = limpio.replace(/<!--[\s\S]*?-->/g, ' ');
+function extraerTextoVisible(html) {
+  let limpio = html.replace(/<script[\s\S]*?<\/script>/gi, '\n');
+  limpio = limpio.replace(/<style[\s\S]*?<\/style>/gi, '\n');
+  limpio = limpio.replace(/<!--[\s\S]*?-->/g, '\n');
+  limpio = limpio.replace(/<\/(p|div|h1|h2|h3|h4|li|section|article|tr)>/gi, '\n');
   limpio = limpio.replace(/<[^>]+>/g, ' ');
   limpio = limpio.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&');
-  limpio = limpio.replace(/\s+/g, ' ').trim();
-  return limpio.substring(0, maxChars);
+  return limpio.replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
 }
 
 function construirPrompt(modo, contenido, paginasEscaneadas = [], esMultiseccion = false) {
   if (modo === "landing") {
-    const listaPaginas = paginasEscaneadas.map(p => p.nombre).join(' -> ');
+    const listaPaginas = paginasEscaneadas.map(p => p.nombre).join(', ');
+    const ejemploSecciones = paginasEscaneadas.map(p => ({
+      nombre: p.nombre,
+      url: p.url,
+      puntaje: 78,
+      rol_en_embudo: "Qué objetivo cumple esta página específica dentro del recorrido del usuario.",
+      que_funciona: "Acierto concreto encontrado EXCLUSIVAMENTE en el contenido de esta página (con cita textual real).",
+      friccion_principal: "Fricción cognitiva o falla LIFT específica de ESTA página (sin repetir hallazgos genéricos de otras).",
+      mejora_inmediata: "Cambio concreto y accionable para optimizar esta sección."
+    }));
 
     return `Eres un Auditor Cognitivo Senior especializado en CRO (Conversion Rate Optimization) y psicología del consumidor.
-Analiza en profundidad el contenido completo extraído de este sitio web${esMultiseccion ? ` (incluyendo su página principal y las secciones detectadas automáticamente: ${listaPaginas})` : ''}.
+Analiza en profundidad el contenido extraído de este sitio web${esMultiseccion ? ` (se auditaron ${paginasEscaneadas.length} páginas: ${listaPaginas})` : ''}.
 
-Aplica:
-1) Modelo LIFT (Propuesta de Valor, Relevancia, Claridad, Reducción de Ansiedad, Urgencia) como marco principal.
-2) Lectura cognitiva complementaria desde Zajonc, Ekman y Teoría de la Mente sin repetir hallazgos.
-${esMultiseccion ? '3) Coherencia y continuidad narrativa entre la página principal y sus secciones secundarias (¿lo que se promete en el inicio se sostiene en servicios, precios o filosofía?).' : ''}
-
-Cita frases textuales reales extraídas del sitio para respaldar el diagnóstico. El resultado debe tener nivel ejecutivo, listo para publicar como caso de estudio en portfolio o LinkedIn.
+REGLA CRÍTICA DE PROFUNDIDAD:
+- No te quedes solo con el menú o el footer. Cada sección recibida ya fue limpiada de elementos repetidos para que evalúes el contenido PROPIO de cada apartado.
+- Debes auditar CADA UNA de las páginas recibidas en el array "auditoria_por_seccion" (exactamente ${paginasEscaneadas.length} elementos, respetando sus nombres y URLs), señalando hallazgos distintos y citas textuales reales de cada página.
+- Aplica el Modelo LIFT (Propuesta de Valor, Relevancia, Claridad, Reducción de Ansiedad, Urgencia) + lectura cognitiva (Zajonc, Ekman, Teoría de la Mente).
 
 Devuelve EXCLUSIVAMENTE un JSON válido con esta estructura exacta:
 {
-  "puntaje": 85,
-  "resumen_ejecutivo": "Síntesis ejecutiva de 2-3 líneas resumiendo el punto fuerte del sitio y su mayor fuga de conversión.",
-  "analisis_continuidad": "${esMultiseccion ? 'Párrafo clínico evaluando la coherencia entre la página principal y las secciones internas escaneadas.' : ''}",
+  "puntaje": 82,
+  "resumen_ejecutivo": "Síntesis ejecutiva de 2-3 líneas resumiendo la salud global del sitio y su principal fuga de conversión.",
+  "analisis_continuidad": "${esMultiseccion ? 'Párrafo clínico evaluando la coherencia entre la Página Principal y las secciones internas: ¿se cumple la promesa o cae la claridad/motivación al navegar?' : ''}",
+  "auditoria_por_seccion": ${JSON.stringify(ejemploSecciones, null, 2)},
   "cartesiano": {
     "labels": ${esMultiseccion ? JSON.stringify(paginasEscaneadas.map(p => p.nombre)) : '["Hero", "Propuesta / Beneficios", "Prueba Social", "CTA Final"]'},
     "valores": [${esMultiseccion ? paginasEscaneadas.map(() => 7).join(', ') : '8, 7, 8, 6'}]
@@ -300,10 +420,10 @@ Devuelve EXCLUSIVAMENTE un JSON válido con esta estructura exacta:
     "labels": ["Propuesta de Valor", "Relevancia", "Claridad", "Reducción de Ansiedad", "Urgencia"],
     "valores": [8, 8, 7, 9, 4]
   },
-  "curva_emocional": { "inicio": 1, "desarrollo": 3, "cierre": 2 },
+  "curva_emocional": { "inicio": 2, "desarrollo": 1, "cierre": 3 },
   "diagnostico_general": [
-    "Fricción LIFT principal (citando texto real): ...",
-    "Punto fuerte detectado (qué variable LIFT neutraliza objeciones): ...",
+    "Fricción LIFT global principal (con evidencia textual): ...",
+    "Punto fuerte estructural del sitio: ...",
     "Oportunidad de conversión prioritaria (qué cambiar primero): ..."
   ],
   "diagnostico_cognitivo": [
@@ -311,20 +431,20 @@ Devuelve EXCLUSIVAMENTE un JSON válido con esta estructura exacta:
     "Teoría de la Mente (sintonía con dudas y miedos implícitos del visitante): ..."
   ],
   "test_ab": {
-    "opcion_a": "REDISEÑO A (Claridad Funcional): [TÍTULO], [SUBTÍTULO] y [CTA] nuevos resolviendo la fricción principal detectada. Debajo, justificación clínica.",
+    "opcion_a": "REDISEÑO A (Claridad Funcional): [TÍTULO], [SUBTÍTULO] y [CTA] nuevos resolviendo la fricción principal. Debajo, justificación clínica.",
     "opcion_a_cuando_usar": "Frase corta y accionable.",
     "opcion_b": "REDISEÑO B (Urgencia + Anti-Fricción): [TÍTULO], [SUBTÍTULO] y [CTA] priorizando bajar ansiedad y sumar urgencia genuina. Debajo, justificación técnica.",
     "opcion_b_cuando_usar": "Frase corta y accionable."
   },
   "hipotesis_medicion_ga4": [
     "CTR del CTA primario segmentado por variante: qué confirmaría la hipótesis.",
-    "Scroll depth o paso entre secciones clave: qué buscar en los datos.",
-    "Evento custom de abandono temprano (ej. hero_exit): cómo probar si la fricción es real."
+    "Métrica de navegación o scroll entre secciones auditadas: qué buscar en los datos.",
+    "Evento custom de abandono temprano: cómo validar si la fricción es real."
   ]
 }
 
 IMPORTANTE:
-- "cartesiano.valores" debe coincidir en cantidad con "cartesiano.labels" (escala 0 a 10).
+- "cartesiano.valores" debe coincidir en cantidad con "cartesiano.labels" (escala 0 a 10) y reflejar el rendimiento real de cada sección.
 - "radar.valores" va de 0 a 10 (en Reducción de Ansiedad, más alto = mejor).
 - "curva_emocional" va de -5 a +5.
 
@@ -336,7 +456,7 @@ ${contenido}
 
   if (modo === "soporte") {
     return `Eres un Auditor Cognitivo experto en Experiencia de Cliente (CX) y psicología del consumidor.
-Analiza este mensaje de soporte basándote en Ekman, Zajonc y la Teoría de la Mente, evaluando si reduce o aumenta la carga emocional y la carga de prueba del usuario.
+Analiza este mensaje de soporte basándote en Ekman, Zajonc y la Teoría de la Mente.
 
 Devuelve EXCLUSIVAMENTE un JSON válido con esta estructura exacta:
 {
@@ -346,24 +466,24 @@ Devuelve EXCLUSIVAMENTE un JSON válido con esta estructura exacta:
   "radar": { "labels": ["Emociones (Ekman)", "Reacción (Zajonc)", "Empatía Operativa", "Teoría Mente", "Claridad"], "valores": [6, 7, 5, 6, 8] },
   "curva_emocional": { "inicio": -2, "desarrollo": 0, "cierre": 2 },
   "diagnostico_general": [
-    "Fricción operativa detectada (¿traslada la carga de prueba al usuario o la asume el sistema?): ...",
-    "Falla o acierto de Teoría de la Mente (¿valida la urgencia real?): ...",
-    "Oportunidad de Válvula de Escape (cómo bajar la carga cognitiva): ..."
+    "Fricción operativa detectada: ...",
+    "Falla o acierto de Teoría de la Mente: ...",
+    "Oportunidad de Válvula de Escape: ..."
   ],
   "diagnostico_cognitivo": [
-    "Zajonc / Ekman (micro-reacción afectiva frente al tono del mensaje): ...",
-    "Carga Cognitiva: cuánto esfuerzo mental exige el siguiente paso al cliente."
+    "Zajonc / Ekman: ...",
+    "Carga Cognitiva: ..."
   ],
   "test_ab": {
-    "opcion_a": "REDISEÑO A (Triage con SLA claro): Respuesta COMPLETA que valide la frustración, fije plazo concreto y traslade la responsabilidad al sistema. Debajo, justificación clínica.",
+    "opcion_a": "REDISEÑO A (Triage con SLA claro): Respuesta COMPLETA + justificación clínica.",
     "opcion_a_cuando_usar": "Frase corta y accionable.",
-    "opcion_b": "REDISEÑO B (Resolución Inmediata): Segunda variante COMPLETA con salida automática sin más esfuerzo del usuario. Debajo, justifica la Paradoja de Recuperación del Servicio.",
+    "opcion_b": "REDISEÑO B (Resolución Inmediata): Respuesta COMPLETA + justificación.",
     "opcion_b_cuando_usar": "Frase corta y accionable."
   },
   "hipotesis_medicion_ga4": [
-    "CSAT / Tasa de recontacto en 48hs tras recibir este mensaje.",
+    "CSAT / Tasa de recontacto en 48hs.",
     "Customer Effort Score (CES) en el flujo de resolución.",
-    "Tasa de escalamiento a reclamo formal o churn post-ticket."
+    "Tasa de escalamiento o churn post-ticket."
   ]
 }
 Mensaje a analizar:
@@ -388,19 +508,19 @@ Devuelve EXCLUSIVAMENTE un JSON válido con esta estructura exacta:
     "Oportunidad de conversión: ..."
   ],
   "diagnostico_cognitivo": [
-    "Zajonc / Ekman (disparador emocional dominante en los primeros 3 segundos): ...",
-    "Teoría de la Mente (ajuste entre promesa y nivel de conciencia del prospecto): ..."
+    "Zajonc / Ekman: ...",
+    "Teoría de la Mente: ..."
   ],
   "test_ab": {
-    "opcion_a": "REDISEÑO A (Anclaje Emocional): Anuncio COMPLETO con [TÍTULO MAGNÉTICO], [CUERPO DEL TEXTO] y [CTA]. Debajo, justificación clínica según Zajonc y Ekman.",
+    "opcion_a": "REDISEÑO A (Anclaje Emocional): [TÍTULO], [CUERPO] y [CTA] + justificación clínica.",
     "opcion_a_cuando_usar": "Frase corta y accionable.",
-    "opcion_b": "REDISEÑO B (Fricción Cero): Segunda variante COMPLETA con [TÍTULO], [CUERPO] y [CTA] enfocados en carga cognitiva mínima. Debajo, justificación técnica.",
+    "opcion_b": "REDISEÑO B (Fricción Cero): [TÍTULO], [CUERPO] y [CTA] + justificación técnica.",
     "opcion_b_cuando_usar": "Frase corta y accionable."
   },
   "hipotesis_medicion_ga4": [
     "Thumbstop rate / CTR saliente comparando Variante A vs Original.",
     "CPA / Costo por lead calificado en landing de destino.",
-    "Porcentaje de rebote post-clic (para validar coherencia anuncio-landing)."
+    "Tasa de rebote post-clic."
   ]
 }
 Texto a analizar:

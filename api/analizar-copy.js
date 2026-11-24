@@ -73,8 +73,12 @@ module.exports = async function handler(req, res) {
     }
 
     // =========================================================================
-    // ACCIÓN 3: Deduplicar secciones y ejecutar auditoría con Gemini
+   // ACCIÓN 3: Deduplicar secciones y ejecutar auditoría con reloj controlado (< 50s)
     // =========================================================================
+    const inicio = Date.now();
+    const LIMITE_TOTAL_MS = 50000; // Garantiza responder antes del corte de 60s de Vercel
+    const tiempoRestante = () => LIMITE_TOTAL_MS - (Date.now() - inicio);
+
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return res.status(500).json({ error: "Falta configurar la API Key de Gemini" });
 
@@ -89,11 +93,11 @@ module.exports = async function handler(req, res) {
     if (modo === "landing") {
       if (textoManual.length >= 50) {
         paginasEscaneadas.push({ nombre: 'Contenido Pegado (Manual)', url: texto || '#' });
-        contenidoParaAnalizar = `=== PÁGINA PRINCIPAL (${texto || 'URL con anti-bot'}) ===\n${limpiarMegaMenu(textoManual).substring(0, 14000)}`;
+        contenidoParaAnalizar = `=== PÁGINA PRINCIPAL (${texto || 'URL con anti-bot'}) ===\n${limpiarMegaMenu(textoManual).substring(0, 9000)}`;
       } else if (bloquesEntrada.length > 0) {
         const home = bloquesEntrada[0];
         const lineasHomeSet = crearIndiceDeLineas(home.texto || "");
-        const homeTexto = (home.texto || "").substring(0, 9500);
+        const homeTexto = (home.texto || "").substring(0, 6000);
 
         paginasEscaneadas.push({ nombre: home.nombre || 'Página Principal', url: home.url || '#' });
         const bloquesLimpios = [`=== SECCIÓN 1: ${(home.nombre || 'PÁGINA PRINCIPAL').toUpperCase()} (${home.url}) ===\n${homeTexto}`];
@@ -103,13 +107,12 @@ module.exports = async function handler(req, res) {
           const sub = bloquesEntrada[i];
           if (!sub || !sub.texto) continue;
 
-          // Saca header, mega-menú y footer repetidos de la Home
           const soloUnico = deduplicarContraHome(sub.texto, lineasHomeSet);
           if (soloUnico.length < 100) continue;
 
           paginasEscaneadas.push({ nombre: sub.nombre, url: sub.url });
           bloquesLimpios.push(
-            `=== SECCIÓN ${idxSec}: ${sub.nombre.toUpperCase()} (${sub.url}) ===\n[Contenido propio de esta sección, sin menú ni footer repetido]\n${soloUnico.substring(0, 5200)}`
+            `=== SECCIÓN ${idxSec}: ${sub.nombre.toUpperCase()} (${sub.url}) ===\n[Contenido propio sin menú ni footer repetido]\n${soloUnico.substring(0, 3000)}`
           );
           idxSec++;
         }
@@ -126,10 +129,14 @@ module.exports = async function handler(req, res) {
     const esMultiseccion = paginasEscaneadas.length > 1;
     const promptMaestro = construirPrompt(modo, contenidoParaAnalizar, paginasEscaneadas, esMultiseccion);
 
-// 1. Consulta qué modelos "flash" están realmente activos hoy en tu API Key (cero 404)
+    // 1. Descubre los 2 modelos flash activos hoy (corte rápido de 4 seg)
     let modelosActivos = ["gemini-3.5-flash", "gemini-3.1-flash-lite"];
     try {
-      const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+      const listCtrl = new AbortController();
+      const listTimer = setTimeout(() => listCtrl.abort(), 4000);
+      const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`, { signal: listCtrl.signal });
+      clearTimeout(listTimer);
+
       if (listRes.ok) {
         const listData = await listRes.json();
         const descubiertos = (listData.models || [])
@@ -148,64 +155,66 @@ module.exports = async function handler(req, res) {
             if (/flash$/.test(name)) return 4;
             return 5;
           };
-          modelosActivos = descubiertos.sort((a, b) => prioridad(a) - prioridad(b)).slice(0, 3);
+          modelosActivos = descubiertos.sort((a, b) => prioridad(a) - prioridad(b)).slice(0, 2);
         }
       }
     } catch {
-      // Si falla el listado, usa los dos base
+      // Usa la lista base si falla el listado
     }
 
     let jsonResponse = null;
     const resumenErrores = [];
-    let hubo503 = false;
 
-    for (let ronda = 1; ronda <= 2 && !jsonResponse; ronda++) {
-      if (ronda === 2) {
-        if (!hubo503) break;
-        await new Promise(resolve => setTimeout(resolve, 2500));
-      }
+    // 2. Una sola ronda: 30s al primero (tiempo real para terminar el JSON) y el resto al segundo
+    for (let i = 0; i < modelosActivos.length; i++) {
+      const disponible = tiempoRestante();
+      if (disponible < 6000) break;
 
-      for (const modelo of modelosActivos) {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 18000);
+      const modelo = modelosActivos[i];
+      const timeoutModelo = i === 0 ? Math.min(30000, disponible) : Math.min(18000, disponible);
+      const t0 = Date.now();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutModelo);
 
-        try {
-          const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                contents: [{ parts: [{ text: promptMaestro }] }],
-                generationConfig: {
-                  response_mime_type: "application/json",
-                  temperature: 0.2,
-                  maxOutputTokens: 6000
-                }
-              }),
-              signal: controller.signal
-            }
-          );
-
-          const data = await response.json();
-
-          if (response.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
-            jsonResponse = JSON.parse(data.candidates[0].content.parts[0].text);
-            break;
-          } else {
-            if (response.status === 503 || response.status === 429) hubo503 = true;
-            resumenErrores.push(`${modelo}: ${response.status}`);
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: promptMaestro }] }],
+              generationConfig: {
+                response_mime_type: "application/json",
+                temperature: 0.2,
+                maxOutputTokens: 4500
+              }
+            }),
+            signal: controller.signal
           }
-        } catch (fetchError) {
-          resumenErrores.push(`${modelo}: ${fetchError.name === 'AbortError' ? 'timeout' : 'error'}`);
-        } finally {
-          clearTimeout(timeoutId);
+        );
+
+        const data = await response.json();
+        const seg = Math.round((Date.now() - t0) / 1000);
+
+        if (response.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
+          jsonResponse = JSON.parse(data.candidates[0].content.parts[0].text);
+          break;
+        } else {
+          resumenErrores.push(`${modelo}: ${response.status} (${seg}s)`);
         }
+      } catch (fetchError) {
+        const seg = Math.round((Date.now() - t0) / 1000);
+        resumenErrores.push(`${modelo}: ${fetchError.name === 'AbortError' ? 'timeout' : 'json_error'} (${seg}s)`);
+      } finally {
+        clearTimeout(timeoutId);
       }
     }
 
-    // 2. Respaldo automático con Groq (si agregás GROQ_API_KEY en Vercel)
-    if (!jsonResponse && process.env.GROQ_API_KEY) {
+    // 3. Respaldo rápido con Groq si Gemini falla y hay tiempo restante
+    if (!jsonResponse && process.env.GROQ_API_KEY && tiempoRestante() >= 6000) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), Math.min(12000, tiempoRestante()));
       try {
         const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
           method: 'POST',
@@ -219,9 +228,10 @@ module.exports = async function handler(req, res) {
             response_format: { type: 'json_object' },
             messages: [
               { role: 'system', content: 'Devuelve exclusivamente un objeto JSON válido siguiendo exactamente la estructura pedida.' },
-              { role: 'user', content: promptMaestro.substring(0, 18000) }
+              { role: 'user', content: promptMaestro.substring(0, 16000) }
             ]
-          })
+          }),
+          signal: controller.signal
         });
 
         const groqData = await groqRes.json();
@@ -232,12 +242,14 @@ module.exports = async function handler(req, res) {
         }
       } catch {
         resumenErrores.push('groq: error');
+      } finally {
+        clearTimeout(timeoutId);
       }
     }
 
     if (!jsonResponse) {
       return res.status(503).json({
-        error: `No respondió ningún modelo (${resumenErrores.join(' | ')}).`
+        error: `No respondió ningún modelo a tiempo (${resumenErrores.join(' | ')}).`
       });
     }
 

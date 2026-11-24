@@ -7,102 +7,130 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido' });
 
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) return res.status(500).json({ error: "Falta configurar la API Key de Gemini" });
-
     let body = req.body;
     if (typeof body === 'string') {
       try { body = JSON.parse(body); } catch (e) { body = { texto: body }; }
     }
 
+    const accion = body?.accion || "auditar";
+
+    // =========================================================================
+    // ACCIÓN 1: Leer solo la página principal y descubrir subpáginas clave
+    // =========================================================================
+    if (accion === "leer_home") {
+      const url = (body?.url || "").trim();
+      const escaneoProfundo = body?.escaneoProfundo !== false;
+
+      if (!url || !/^https?:\/\//i.test(url)) {
+        return res.status(400).json({ error: 'La URL debe empezar con http:// o https://' });
+      }
+
+      const homeData = await extraerContenidoWeb(url, 12000, 6000);
+
+      if (!homeData.textoCrudo || homeData.textoCrudo.length < 80 || pareceBloqueoAntiBot(homeData.textoCrudo)) {
+        return res.status(422).json({
+          bloqueadoPorAntiBot: true,
+          error: 'Este sitio bloquea el acceso automatizado (protección anti-bot).'
+        });
+      }
+
+      const textoLimpio = limpiarMegaMenu(homeData.textoCrudo).substring(0, 11000);
+      const subpaginas = escaneoProfundo
+        ? descubrirSubpaginasClave(homeData.crudoOriginal, url, homeData.esHtml, 3)
+        : [];
+
+      return res.status(200).json({
+        nombre: 'Página Principal',
+        url,
+        texto: textoLimpio,
+        subpaginas
+      });
+    }
+
+    // =========================================================================
+    // ACCIÓN 2: Leer 1 subpágina en su propia ejecución independiente
+    // =========================================================================
+    if (accion === "leer_subpagina") {
+      const url = (body?.url || "").trim();
+      const nombre = (body?.nombre || "Sección").trim();
+
+      if (!url || !/^https?:\/\//i.test(url)) {
+        return res.status(200).json({ omitida: true });
+      }
+
+      const subData = await extraerContenidoWeb(url, 10000, 5000);
+      if (!subData.textoCrudo || subData.textoCrudo.length < 100 || pareceBloqueoAntiBot(subData.textoCrudo)) {
+        return res.status(200).json({ omitida: true });
+      }
+
+      const textoLimpio = limpiarMegaMenu(subData.textoCrudo).substring(0, 12000);
+      return res.status(200).json({
+        omitida: false,
+        nombre,
+        url,
+        texto: textoLimpio
+      });
+    }
+
+    // =========================================================================
+    // ACCIÓN 3: Deduplicar secciones y ejecutar auditoría con Gemini
+    // =========================================================================
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) return res.status(500).json({ error: "Falta configurar la API Key de Gemini" });
+
     const modo = body?.modo || "ads";
     const texto = (body?.texto || "").trim();
-    const textoManualFallback = (body?.textoManual || "").trim();
-    const escaneoProfundo = body?.escaneoProfundo !== false;
+    const textoManual = (body?.textoManual || "").trim();
+    const bloquesEntrada = Array.isArray(body?.bloques) ? body.bloques : [];
 
-    if (!texto && !textoManualFallback) {
-      return res.status(400).json({ error: 'El texto o la URL es requerido' });
-    }
-
-    let contenidoParaAnalizar = texto;
+    let contenidoParaAnalizar = "";
     let paginasEscaneadas = [];
 
-    // 1. Modo Web / Landing
     if (modo === "landing") {
-      // Si el usuario usó el respaldo manual (para sitios con anti-bot como Nike)
-      if (textoManualFallback.length >= 50) {
+      if (textoManual.length >= 50) {
         paginasEscaneadas.push({ nombre: 'Contenido Pegado (Manual)', url: texto || '#' });
-        contenidoParaAnalizar = `=== PÁGINA PRINCIPAL (${texto || 'URL con anti-bot'}) ===\n${limpiarMegaMenu(textoManualFallback).substring(0, 16000)}`;
+        contenidoParaAnalizar = `=== PÁGINA PRINCIPAL (${texto || 'URL con anti-bot'}) ===\n${limpiarMegaMenu(textoManual).substring(0, 14000)}`;
+      } else if (bloquesEntrada.length > 0) {
+        const home = bloquesEntrada[0];
+        const lineasHomeSet = crearIndiceDeLineas(home.texto || "");
+        const homeTexto = (home.texto || "").substring(0, 9500);
+
+        paginasEscaneadas.push({ nombre: home.nombre || 'Página Principal', url: home.url || '#' });
+        const bloquesLimpios = [`=== SECCIÓN 1: ${(home.nombre || 'PÁGINA PRINCIPAL').toUpperCase()} (${home.url}) ===\n${homeTexto}`];
+
+        let idxSec = 2;
+        for (let i = 1; i < bloquesEntrada.length; i++) {
+          const sub = bloquesEntrada[i];
+          if (!sub || !sub.texto) continue;
+
+          // Saca header, mega-menú y footer repetidos de la Home
+          const soloUnico = deduplicarContraHome(sub.texto, lineasHomeSet);
+          if (soloUnico.length < 100) continue;
+
+          paginasEscaneadas.push({ nombre: sub.nombre, url: sub.url });
+          bloquesLimpios.push(
+            `=== SECCIÓN ${idxSec}: ${sub.nombre.toUpperCase()} (${sub.url}) ===\n[Contenido propio de esta sección, sin menú ni footer repetido]\n${soloUnico.substring(0, 5200)}`
+          );
+          idxSec++;
+        }
+
+        contenidoParaAnalizar = bloquesLimpios.join("\n\n========================================\n\n");
       } else {
-        if (!/^https?:\/\//i.test(texto)) {
-          return res.status(400).json({ error: 'La URL debe empezar con http:// o https://' });
-        }
-
-        // Extraemos la página principal completa (sin recortar antes de limpiar)
-        const homeData = await extraerContenidoWeb(texto, 18000);
-
-        if (!homeData.textoCrudo || homeData.textoCrudo.length < 80 || pareceBloqueoAntiBot(homeData.textoCrudo)) {
-          return res.status(422).json({
-            bloqueadoPorAntiBot: true,
-            error: 'Este sitio bloquea el acceso automatizado (protección anti-bot como Cloudflare o Akamai). Podés abrir la web, tocar Ctrl+A → Ctrl+C y pegar el texto abajo para auditarla igual.'
-          });
-        }
-
-        // Guardamos líneas repetitivas de la Home para eliminarlas de las subpáginas
-        const lineasHomeSet = crearIndiceDeLineas(homeData.textoCrudo);
-        const homeLimpia = limpiarMegaMenu(homeData.textoCrudo).substring(0, 11000);
-
-        paginasEscaneadas.push({ nombre: 'Página Principal', url: texto });
-        let bloques = [`=== SECCIÓN 1: PÁGINA PRINCIPAL (${texto}) ===\n${homeLimpia}`];
-
-        // Descubrimiento automático de hasta 3 secciones clave
-        if (escaneoProfundo) {
-          const subpaginasClave = descubrirSubpaginasClave(homeData.crudoOriginal, texto, homeData.esHtml, 3);
-
-          if (subpaginasClave.length > 0) {
-            const resultadosSub = await Promise.all(
-              subpaginasClave.map(async (sub) => {
-                const subData = await extraerContenidoWeb(sub.url, 14000);
-                if (!subData.textoCrudo || subData.textoCrudo.length < 100 || pareceBloqueoAntiBot(subData.textoCrudo)) {
-                  return null;
-                }
-                // Eliminamos menú, header y footer idénticos a la Home para quedarnos SOLO con lo único de esta sección
-                const soloContenidoUnico = deduplicarContraHome(limpiarMegaMenu(subData.textoCrudo), lineasHomeSet);
-                if (soloContenidoUnico.length < 120) return null;
-
-                return {
-                  nombre: sub.nombre,
-                  url: sub.url,
-                  texto: soloContenidoUnico.substring(0, 6500)
-                };
-              })
-            );
-
-            let idxSec = 2;
-            for (const item of resultadosSub) {
-              if (item) {
-                paginasEscaneadas.push({ nombre: item.nombre, url: item.url });
-                bloques.push(`=== SECCIÓN ${idxSec}: ${item.nombre.toUpperCase()} (${item.url}) ===\n[Contenido único de esta sección, sin menú ni footer repetido]\n${item.texto}`);
-                idxSec++;
-              }
-            }
-          }
-        }
-
-        contenidoParaAnalizar = bloques.join("\n\n========================================\n\n");
+        return res.status(400).json({ error: 'No se recibió contenido para auditar.' });
       }
+    } else {
+      if (!texto) return res.status(400).json({ error: 'El texto es requerido' });
+      contenidoParaAnalizar = texto;
     }
 
-    // 2. Prompt maestro exigiendo análisis individual por sección
     const esMultiseccion = paginasEscaneadas.length > 1;
     const promptMaestro = construirPrompt(modo, contenidoParaAnalizar, paginasEscaneadas, esMultiseccion);
 
-    // 3. Llamada a Gemini con JSON nativo + 8192 tokens de salida para profundidad real
     const modelosGratuitos = [
-      "gemini-3.5-flash",
-      "gemini-3.1-flash-lite",
+      "gemini-2.5-flash",
       "gemini-2.5-flash-lite",
-      "gemini-2.5-flash"
+      "gemini-3.5-flash",
+      "gemini-3.1-flash-lite"
     ];
 
     let responseText = null;
@@ -110,6 +138,9 @@ module.exports = async function handler(req, res) {
 
     for (const modelo of modelosGratuitos) {
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 28000);
+
         const response = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`,
           {
@@ -120,11 +151,13 @@ module.exports = async function handler(req, res) {
               generationConfig: {
                 response_mime_type: "application/json",
                 temperature: 0.2,
-                maxOutputTokens: 8192
+                maxOutputTokens: 6000
               }
-            })
+            }),
+            signal: controller.signal
           }
         );
+        clearTimeout(timeoutId);
 
         const data = await response.json();
 
@@ -140,7 +173,7 @@ module.exports = async function handler(req, res) {
     }
 
     if (!responseText) {
-      throw new Error(JSON.stringify(lastError || "Todos los modelos fallaron."));
+      throw new Error(JSON.stringify(lastError || "Todos los modelos fallaron o excedieron el tiempo."));
     }
 
     const jsonResponse = JSON.parse(responseText);
@@ -157,18 +190,18 @@ module.exports = async function handler(req, res) {
   }
 };
 
-// Extrae contenido sin truncarlo prematuramente para poder limpiar mega-menús primero
-async function extraerContenidoWeb(targetUrl, timeoutMs = 15000) {
+// Extrae contenido vía Jina Reader con fallback a fetch nativo
+async function extraerContenidoWeb(targetUrl, jinaTimeoutMs = 11000, fallbackTimeoutMs = 5000) {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    const timeoutId = setTimeout(() => controller.abort(), jinaTimeoutMs);
 
     const jinaRes = await fetch(`https://r.jina.ai/${targetUrl}`, {
       headers: {
         'Accept': 'text/plain',
         'X-Return-Format': 'markdown',
-        'X-Timeout': '14',
-        'User-Agent': 'AuditorCognitivo/2.2'
+        'X-Timeout': String(Math.floor(jinaTimeoutMs / 1000)),
+        'User-Agent': 'AuditorCognitivo/2.3'
       },
       signal: controller.signal
     });
@@ -189,10 +222,9 @@ async function extraerContenidoWeb(targetUrl, timeoutMs = 15000) {
     console.warn(`Jina Reader falló para ${targetUrl}:`, jinaErr.message);
   }
 
-  // Fallback nativo
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 9000);
+    const timeoutId = setTimeout(() => controller.abort(), fallbackTimeoutMs);
     const pageResponse = await fetch(targetUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
@@ -204,7 +236,7 @@ async function extraerContenidoWeb(targetUrl, timeoutMs = 15000) {
 
     if (!pageResponse.ok) return { textoCrudo: "", crudoOriginal: "", esHtml: true };
     const html = await pageResponse.text();
-    const acotadoHtml = html.substring(0, 150000);
+    const acotadoHtml = html.substring(0, 140000);
     return {
       textoCrudo: extraerTextoVisible(acotadoHtml),
       crudoOriginal: acotadoHtml,
@@ -239,7 +271,6 @@ function limpiarBasuraMarkdown(md) {
     .trim();
 }
 
-// Detecta y colapsa bloques masivos de enlaces de mega-menús para que no consuman los tokens del contenido real
 function limpiarMegaMenu(texto) {
   const lineas = texto.split('\n');
   const resultado = [];
@@ -248,15 +279,13 @@ function limpiarMegaMenu(texto) {
   const esLineaSoloLink = (l) => {
     const t = l.trim();
     if (!t) return false;
-    // Detecta ítems tipo "* [Zapatillas](url)" o "[0-5KM](url)"
     return /^[-*•]?\s*\[[^\]]{1,70}\]\([^)]+\)\s*$/.test(t);
   };
 
   const vaciarRacha = () => {
     if (rachaLinks.length > 6) {
-      // Mantenemos una muestra mínima para que el Auditor note que existe un menú grande, sin ahogar el contexto
       resultado.push(...rachaLinks.slice(0, 3));
-      resultado.push(`[... ${rachaLinks.length - 3} enlaces de menú/navegación condensados ...]`);
+      resultado.push(`[... ${rachaLinks.length - 3} enlaces de menú condensados ...]`);
     } else {
       resultado.push(...rachaLinks);
     }
@@ -273,7 +302,6 @@ function limpiarMegaMenu(texto) {
   }
   if (rachaLinks.length > 0) vaciarRacha();
 
-  // También quita las URLs largas dentro de links de texto para ahorrar tokens: [Texto](https://...) -> Texto
   return resultado
     .join('\n')
     .replace(/\[([^\]]{2,100})\]\(https?:\/\/[^)]+\)/g, '$1')
@@ -284,13 +312,12 @@ function limpiarMegaMenu(texto) {
 function crearIndiceDeLineas(texto) {
   const set = new Set();
   for (const linea of texto.split('\n')) {
-    const norm = linea.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').trim().toLowerCase();
+    const norm = linea.trim().toLowerCase();
     if (norm.length >= 12) set.add(norm);
   }
   return set;
 }
 
-// Elimina de una subpágina cualquier línea que ya apareció idéntica en la Home (header, mega-menú, cookies, footer)
 function deduplicarContraHome(textoSubpagina, lineasHomeSet) {
   const filtradas = textoSubpagina.split('\n').filter((linea) => {
     const norm = linea.trim().toLowerCase();
@@ -302,14 +329,9 @@ function deduplicarContraHome(textoSubpagina, lineasHomeSet) {
   return filtradas.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
-// Descubre subpáginas clave evitando links genéricos como "ver todo" si hay secciones más ricas
 function descubrirSubpaginasClave(contenidoCrudo, baseUrlStr, esHtml, maxPaginas = 3) {
   let baseUrl;
-  try {
-    baseUrl = new URL(baseUrlStr);
-  } catch {
-    return [];
-  }
+  try { baseUrl = new URL(baseUrlStr); } catch { return []; }
 
   const baseHost = baseUrl.hostname.replace(/^www\./, '');
   const basePathNormalizado = baseUrl.pathname.replace(/\/+$/, '') || '/';
@@ -334,11 +356,7 @@ function descubrirSubpaginasClave(contenidoCrudo, baseUrlStr, esHtml, maxPaginas
     if (!rawHref || /^(mailto:|tel:|javascript:|#)/i.test(rawHref)) continue;
 
     let urlObj;
-    try {
-      urlObj = new URL(rawHref, baseUrl.origin);
-    } catch {
-      continue;
-    }
+    try { urlObj = new URL(rawHref, baseUrl.origin); } catch { continue; }
 
     const host = urlObj.hostname.replace(/^www\./, '');
     if (host !== baseHost) continue;
@@ -392,9 +410,9 @@ function construirPrompt(modo, contenido, paginasEscaneadas = [], esMultiseccion
       nombre: p.nombre,
       url: p.url,
       puntaje: 78,
-      rol_en_embudo: "Qué objetivo cumple esta página específica dentro del recorrido del usuario.",
-      que_funciona: "Acierto concreto encontrado EXCLUSIVAMENTE en el contenido de esta página (con cita textual real).",
-      friccion_principal: "Fricción cognitiva o falla LIFT específica de ESTA página (sin repetir hallazgos genéricos de otras).",
+      rol_en_embudo: "Qué objetivo cumple esta página dentro del recorrido.",
+      que_funciona: "Acierto concreto encontrado EXCLUSIVAMENTE en esta página (con cita textual real).",
+      friccion_principal: "Fricción cognitiva o falla LIFT específica de ESTA página.",
       mejora_inmediata: "Cambio concreto y accionable para optimizar esta sección."
     }));
 
@@ -402,7 +420,7 @@ function construirPrompt(modo, contenido, paginasEscaneadas = [], esMultiseccion
 Analiza en profundidad el contenido extraído de este sitio web${esMultiseccion ? ` (se auditaron ${paginasEscaneadas.length} páginas: ${listaPaginas})` : ''}.
 
 REGLA CRÍTICA DE PROFUNDIDAD:
-- No te quedes solo con el menú o el footer. Cada sección recibida ya fue limpiada de elementos repetidos para que evalúes el contenido PROPIO de cada apartado.
+- No te quedes solo con el menú o el footer. Cada sección secundaria ya fue limpiada de elementos repetidos para que evalúes el contenido PROPIO de cada apartado.
 - Debes auditar CADA UNA de las páginas recibidas en el array "auditoria_por_seccion" (exactamente ${paginasEscaneadas.length} elementos, respetando sus nombres y URLs), señalando hallazgos distintos y citas textuales reales de cada página.
 - Aplica el Modelo LIFT (Propuesta de Valor, Relevancia, Claridad, Reducción de Ansiedad, Urgencia) + lectura cognitiva (Zajonc, Ekman, Teoría de la Mente).
 
@@ -410,7 +428,7 @@ Devuelve EXCLUSIVAMENTE un JSON válido con esta estructura exacta:
 {
   "puntaje": 82,
   "resumen_ejecutivo": "Síntesis ejecutiva de 2-3 líneas resumiendo la salud global del sitio y su principal fuga de conversión.",
-  "analisis_continuidad": "${esMultiseccion ? 'Párrafo clínico evaluando la coherencia entre la Página Principal y las secciones internas: ¿se cumple la promesa o cae la claridad/motivación al navegar?' : ''}",
+  "analisis_continuidad": "${esMultiseccion ? 'Párrafo clínico evaluando la coherencia entre la Página Principal y las secciones internas.' : ''}",
   "auditoria_por_seccion": ${JSON.stringify(ejemploSecciones, null, 2)},
   "cartesiano": {
     "labels": ${esMultiseccion ? JSON.stringify(paginasEscaneadas.map(p => p.nombre)) : '["Hero", "Propuesta / Beneficios", "Prueba Social", "CTA Final"]'},
@@ -444,7 +462,7 @@ Devuelve EXCLUSIVAMENTE un JSON válido con esta estructura exacta:
 }
 
 IMPORTANTE:
-- "cartesiano.valores" debe coincidir en cantidad con "cartesiano.labels" (escala 0 a 10) y reflejar el rendimiento real de cada sección.
+- "cartesiano.valores" debe coincidir en cantidad con "cartesiano.labels" (escala 0 a 10).
 - "radar.valores" va de 0 a 10 (en Reducción de Ansiedad, más alto = mejor).
 - "curva_emocional" va de -5 a +5.
 
